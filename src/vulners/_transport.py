@@ -7,9 +7,12 @@ import time
 from collections.abc import Mapping
 from importlib.util import find_spec
 from random import SystemRandom
-from typing import Final, TypeAlias
+from typing import TYPE_CHECKING, Final, TypeAlias
 
 import httpx
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from ._exceptions import (
     AuthenticationError,
@@ -23,6 +26,8 @@ from ._rate_limit import TokenBucket
 from ._serde import JSONValue, json_loads
 
 HTTPMethod: TypeAlias = str
+QueryValue: TypeAlias = str | int | float | bool
+FileValue: TypeAlias = tuple[str, bytes, str]
 ResponseData: TypeAlias = Mapping[str, object] | list[object] | str | int | float | bool | None
 _RETRYABLE_STATUS_CODES: Final = frozenset({429, 500, 502, 503, 504})
 _HTTP2_AVAILABLE: Final = find_spec("h2") is not None
@@ -177,15 +182,37 @@ class SyncTransport(_TransportBase):
         if self._owns_client:
             self._client.close()
 
-    def request(self, method: HTTPMethod, path: str, *, json: Mapping[str, object]) -> ResponseData:
+    def request(
+        self,
+        method: HTTPMethod,
+        path: str,
+        *,
+        json: Mapping[str, object] | None = None,
+        params: Mapping[str, QueryValue] | None = None,
+        files: Mapping[str, FileValue] | None = None,
+        add_api_key: bool = False,
+    ) -> ResponseData:
         """Make an API request and return its parsed payload."""
         bucket = self._bucket_for(path)
+        payload = dict(json) if json is not None else None
+        query = dict(params) if params is not None else None
+        if add_api_key:
+            if payload is not None:
+                payload["apiKey"] = self._api_key
+            else:
+                query = query or {}
+                query["apiKey"] = self._api_key
         for attempt in range(1, self._retries + 1):
             if self._rate_limit:
                 bucket.consume()
             try:
                 response = self._client.request(
-                    method, path, json=json, headers=_request_headers(self._api_key)
+                    method,
+                    path,
+                    json=payload,
+                    params=query,
+                    files=files,
+                    headers=_request_headers(self._api_key),
                 )
             except httpx.TransportError as error:
                 if attempt == self._retries:
@@ -199,6 +226,72 @@ class SyncTransport(_TransportBase):
                 time.sleep(_retry_delay(attempt, response))
                 continue
             return parse_response(response)
+        msg = "Retry loop exited unexpectedly"
+        raise RuntimeError(msg)
+
+    def request_bytes(
+        self, method: HTTPMethod, path: str, *, params: Mapping[str, QueryValue]
+    ) -> bytes:
+        """Request a binary response, retaining retry and error semantics."""
+        bucket = self._bucket_for(path)
+        for attempt in range(1, self._retries + 1):
+            if self._rate_limit:
+                bucket.consume()
+            try:
+                response = self._client.request(
+                    method, path, params=params, headers=_request_headers(self._api_key)
+                )
+            except httpx.TransportError as error:
+                if attempt == self._retries:
+                    msg = "Unable to reach the Vulners API"
+                    raise VulnersError(msg) from error
+                time.sleep(_retry_delay(attempt))
+                continue
+            self._update_rate_limit(path, response)
+            if response.status_code in _RETRYABLE_STATUS_CODES and attempt < self._retries:
+                time.sleep(_retry_delay(attempt, response))
+                continue
+            if response.is_error:
+                _raise_api_error(response, _read_json(response))
+            return response.content
+        msg = "Retry loop exited unexpectedly"
+        raise RuntimeError(msg)
+
+    def download(
+        self,
+        method: HTTPMethod,
+        path: str,
+        destination: Path,
+        *,
+        params: Mapping[str, QueryValue],
+    ) -> Path:
+        """Stream a binary response directly to a local file."""
+        bucket = self._bucket_for(path)
+        for attempt in range(1, self._retries + 1):
+            if self._rate_limit:
+                bucket.consume()
+            try:
+                with self._client.stream(
+                    method, path, params=params, headers=_request_headers(self._api_key)
+                ) as response:
+                    response.headers.pop("set-cookie", None)
+                    self._update_rate_limit(path, response)
+                    if response.status_code in _RETRYABLE_STATUS_CODES and attempt < self._retries:
+                        response.read()
+                        time.sleep(_retry_delay(attempt, response))
+                        continue
+                    if response.is_error:
+                        response.read()
+                        _raise_api_error(response, _read_json(response))
+                    with destination.open("wb") as output:
+                        for chunk in response.iter_raw():
+                            output.write(chunk)
+                return destination
+            except httpx.TransportError as error:
+                if attempt == self._retries:
+                    msg = "Unable to reach the Vulners API"
+                    raise VulnersError(msg) from error
+                time.sleep(_retry_delay(attempt))
         msg = "Retry loop exited unexpectedly"
         raise RuntimeError(msg)
 
@@ -233,16 +326,36 @@ class AsyncTransport(_TransportBase):
             await self._client.aclose()
 
     async def request(
-        self, method: HTTPMethod, path: str, *, json: Mapping[str, object]
+        self,
+        method: HTTPMethod,
+        path: str,
+        *,
+        json: Mapping[str, object] | None = None,
+        params: Mapping[str, QueryValue] | None = None,
+        files: Mapping[str, FileValue] | None = None,
+        add_api_key: bool = False,
     ) -> ResponseData:
         """Make an API request and return its parsed payload without blocking the event loop."""
         bucket = self._bucket_for(path)
+        payload = dict(json) if json is not None else None
+        query = dict(params) if params is not None else None
+        if add_api_key:
+            if payload is not None:
+                payload["apiKey"] = self._api_key
+            else:
+                query = query or {}
+                query["apiKey"] = self._api_key
         for attempt in range(1, self._retries + 1):
             if self._rate_limit:
                 await bucket.aconsume()
             try:
                 response = await self._client.request(
-                    method, path, json=json, headers=_request_headers(self._api_key)
+                    method,
+                    path,
+                    json=payload,
+                    params=query,
+                    files=files,
+                    headers=_request_headers(self._api_key),
                 )
             except httpx.TransportError as error:
                 if attempt == self._retries:
@@ -256,5 +369,74 @@ class AsyncTransport(_TransportBase):
                 await asyncio.sleep(_retry_delay(attempt, response))
                 continue
             return parse_response(response)
+        msg = "Retry loop exited unexpectedly"
+        raise RuntimeError(msg)
+
+    async def request_bytes(
+        self, method: HTTPMethod, path: str, *, params: Mapping[str, QueryValue]
+    ) -> bytes:
+        """Request a binary response, retaining retry and error semantics."""
+        bucket = self._bucket_for(path)
+        for attempt in range(1, self._retries + 1):
+            if self._rate_limit:
+                await bucket.aconsume()
+            try:
+                response = await self._client.request(
+                    method, path, params=params, headers=_request_headers(self._api_key)
+                )
+            except httpx.TransportError as error:
+                if attempt == self._retries:
+                    msg = "Unable to reach the Vulners API"
+                    raise VulnersError(msg) from error
+                await asyncio.sleep(_retry_delay(attempt))
+                continue
+            self._update_rate_limit(path, response)
+            if response.status_code in _RETRYABLE_STATUS_CODES and attempt < self._retries:
+                await asyncio.sleep(_retry_delay(attempt, response))
+                continue
+            if response.is_error:
+                _raise_api_error(response, _read_json(response))
+            return response.content
+        msg = "Retry loop exited unexpectedly"
+        raise RuntimeError(msg)
+
+    async def download(
+        self,
+        method: HTTPMethod,
+        path: str,
+        destination: Path,
+        *,
+        params: Mapping[str, QueryValue],
+    ) -> Path:
+        """Stream a binary response directly to a local file without blocking the event loop."""
+        bucket = self._bucket_for(path)
+        for attempt in range(1, self._retries + 1):
+            if self._rate_limit:
+                await bucket.aconsume()
+            try:
+                async with self._client.stream(
+                    method, path, params=params, headers=_request_headers(self._api_key)
+                ) as response:
+                    response.headers.pop("set-cookie", None)
+                    self._update_rate_limit(path, response)
+                    if response.status_code in _RETRYABLE_STATUS_CODES and attempt < self._retries:
+                        await response.aread()
+                        await asyncio.sleep(_retry_delay(attempt, response))
+                        continue
+                    if response.is_error:
+                        await response.aread()
+                        _raise_api_error(response, _read_json(response))
+                    output = await asyncio.to_thread(destination.open, "wb")
+                    try:
+                        async for chunk in response.aiter_raw():
+                            await asyncio.to_thread(output.write, chunk)
+                    finally:
+                        await asyncio.to_thread(output.close)
+                return destination
+            except httpx.TransportError as error:
+                if attempt == self._retries:
+                    msg = "Unable to reach the Vulners API"
+                    raise VulnersError(msg) from error
+                await asyncio.sleep(_retry_delay(attempt))
         msg = "Retry loop exited unexpectedly"
         raise RuntimeError(msg)
