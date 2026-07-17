@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from typing import TYPE_CHECKING
 
 import httpx
@@ -17,6 +19,7 @@ from vulners import (
     VulnersError,
     __version__,
 )
+from vulners._rate_limit import TokenBucket
 from vulners._transport import _parse_retry_after, _rate_limit_from, _retry_delay, parse_response
 
 if TYPE_CHECKING:
@@ -33,7 +36,7 @@ def test_version_and_user_agent_are_consistent() -> None:
     with Vulners("key", base_url=BASE_URL) as client:
         client.search.bulletins("test")
 
-    assert __version__ == "1.0.0"
+    assert __version__.count(".") == 2
     assert route.calls[0].request.headers["User-Agent"] == f"vulners-py/{__version__}"
     assert route.calls[0].request.headers["X-Api-Key"] == "key"
 
@@ -56,11 +59,15 @@ def test_v3_body_error_is_mapped() -> None:
 
 
 @respx.mock
-def test_http_error_types_and_retry_after() -> None:
-    respx.post(LUCENE_URL).mock(return_value=httpx.Response(401, json={"message": "No access"}))
+@pytest.mark.parametrize("status", [401, 403])
+def test_authentication_errors(status: int) -> None:
+    respx.post(LUCENE_URL).mock(return_value=httpx.Response(status, json={"message": "No access"}))
     with Vulners("not-a-real-key", base_url=BASE_URL) as client, pytest.raises(AuthenticationError):
         client.search.bulletins("test")
 
+
+@respx.mock
+def test_rate_limit_error_exposes_retry_after() -> None:
     respx.post(LUCENE_URL).mock(
         return_value=httpx.Response(
             429, headers={"Retry-After": "3"}, json={"message": "Slow down"}
@@ -79,15 +86,17 @@ def test_http_error_types_and_retry_after() -> None:
 def test_retryable_server_error_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     route = respx.post(LUCENE_URL).mock(
         side_effect=[
-            httpx.Response(503, json={"message": "Unavailable"}),
+            httpx.Response(503, headers={"Retry-After": "2"}, json={"message": "Unavailable"}),
             httpx.Response(200, json=SUCCESS),
         ]
     )
-    monkeypatch.setattr("vulners._transport.time.sleep", lambda _: None)
+    delays: list[float] = []
+    monkeypatch.setattr("vulners._transport.time.sleep", delays.append)
     with Vulners("not-a-real-key", base_url=BASE_URL, retries=2) as client:
         page = client.search.bulletins("test")
 
     assert route.call_count == 2
+    assert delays == [2.0]
     assert page.total == 0
 
 
@@ -106,6 +115,7 @@ def test_client_repr_redacts_api_key() -> None:
     client = Vulners("very-secret-api-key", base_url=BASE_URL)
     try:
         assert "very-secret-api-key" not in repr(client)
+        assert "very-secret-api-key" not in repr(client._transport)
     finally:
         client.close()
 
@@ -146,20 +156,72 @@ def test_invalid_retry_count_and_environment_key(monkeypatch: pytest.MonkeyPatch
 async def test_async_transport_retries_and_redacts(monkeypatch: pytest.MonkeyPatch) -> None:
     route = respx.post(LUCENE_URL).mock(
         side_effect=[
-            httpx.Response(503, json={"message": "retry"}),
+            httpx.Response(503, headers={"Retry-After": "1.5"}, json={"message": "retry"}),
             httpx.Response(200, json=SUCCESS),
         ]
     )
 
-    async def no_sleep(_: float) -> None:
-        return None
+    delays: list[float] = []
 
-    monkeypatch.setattr("vulners._transport.asyncio.sleep", no_sleep)
+    async def record_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    monkeypatch.setattr("vulners._transport.asyncio.sleep", record_sleep)
     async with AsyncVulners("secret", base_url=BASE_URL, retries=2) as client:
         assert "secret" not in repr(client)
         page = await client.search.bulletins("test")
     assert page.total == 0
     assert route.call_count == 2
+    assert delays == [1.5]
+
+
+@pytest.mark.parametrize("status", [401, 403])
+@respx.mock
+async def test_async_authentication_errors(status: int) -> None:
+    respx.post(LUCENE_URL).mock(return_value=httpx.Response(status, json={"message": "No access"}))
+    async with AsyncVulners("key", base_url=BASE_URL, retries=1) as client:
+        with pytest.raises(AuthenticationError):
+            await client.search.bulletins("test")
+
+
+@respx.mock
+async def test_async_rate_limit_and_v3_body_errors() -> None:
+    route = respx.post(LUCENE_URL).mock(
+        return_value=httpx.Response(
+            429, headers={"Retry-After": "4"}, json={"message": "Slow down"}
+        )
+    )
+    async with AsyncVulners("key", base_url=BASE_URL, retries=1) as client:
+        with pytest.raises(RateLimitError) as rate_error:
+            await client.search.bulletins("test")
+    assert rate_error.value.retry_after == 4.0
+
+    route.mock(
+        return_value=httpx.Response(
+            200, json={"result": "error", "data": {"error": "Invalid query"}}
+        )
+    )
+    async with AsyncVulners("key", base_url=BASE_URL, retries=1) as client:
+        with pytest.raises(VulnersAPIError, match="Invalid query"):
+            await client.search.bulletins("bad")
+
+
+@respx.mock
+async def test_async_json_retry_exhaustion(monkeypatch: pytest.MonkeyPatch) -> None:
+    route = respx.post(LUCENE_URL).mock(
+        return_value=httpx.Response(503, json={"message": "Unavailable"})
+    )
+    delays: list[float] = []
+
+    async def record_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    monkeypatch.setattr("vulners._transport.asyncio.sleep", record_sleep)
+    async with AsyncVulners("key", base_url=BASE_URL, retries=2) as client:
+        with pytest.raises(ServerError):
+            await client.search.bulletins("test")
+    assert route.call_count == 2
+    assert len(delays) == 1
 
 
 async def test_async_transport_error_is_wrapped() -> None:
@@ -179,6 +241,12 @@ async def test_async_transport_error_is_wrapped() -> None:
 def test_retry_and_rate_headers_handle_invalid_values() -> None:
     request = httpx.Request("GET", BASE_URL)
     invalid_retry = httpx.Response(429, headers={"Retry-After": "later"}, request=request)
+    now = datetime(2026, 7, 17, 12, 0, tzinfo=timezone.utc)
+    dated_retry = httpx.Response(
+        429,
+        headers={"Retry-After": format_datetime(now + timedelta(seconds=45), usegmt=True)},
+        request=request,
+    )
     # Upstream advertises only X-Vulners-Ratelimit-Reqlimit (requests-per-minute);
     # the legacy X-Vulners-Ratelimit-Rate header is intentionally not honored.
     ignored_rate = httpx.Response(200, headers={"X-Vulners-Ratelimit-Rate": "120"}, request=request)
@@ -189,10 +257,78 @@ def test_retry_and_rate_headers_handle_invalid_values() -> None:
         200, headers={"X-Vulners-Ratelimit-Reqlimit": "many"}, request=request
     )
     assert _parse_retry_after(invalid_retry) is None
+    assert _parse_retry_after(dated_retry, now=now) == 45.0
     assert _rate_limit_from(ignored_rate) is None
     assert _rate_limit_from(valid_rate) == 120.0
     assert _rate_limit_from(invalid_rate) is None
-    assert _retry_delay(1) >= 0.25
+    assert 0.25 <= _retry_delay(1) <= 0.35
+    assert 1.0 <= _retry_delay(3) <= 1.1
+
+
+@respx.mock
+def test_rate_limit_false_bypasses_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
+    def unexpected_consume(bucket: TokenBucket) -> None:
+        pytest.fail(f"rate limiter consumed a token from {bucket!r}")
+
+    monkeypatch.setattr(TokenBucket, "consume", unexpected_consume)
+    respx.post(LUCENE_URL).mock(return_value=httpx.Response(200, json=SUCCESS))
+    with Vulners("key", base_url=BASE_URL, rate_limit=False) as client:
+        assert client.search.bulletins("test").total == 0
+
+
+@respx.mock
+async def test_async_rate_limit_false_bypasses_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def unexpected_consume(bucket: TokenBucket) -> None:
+        pytest.fail(f"rate limiter consumed a token from {bucket!r}")
+
+    monkeypatch.setattr(TokenBucket, "aconsume", unexpected_consume)
+    respx.post(LUCENE_URL).mock(return_value=httpx.Response(200, json=SUCCESS))
+    async with AsyncVulners("key", base_url=BASE_URL, rate_limit=False) as client:
+        assert (await client.search.bulletins("test")).total == 0
+
+
+def test_sync_transport_rejects_and_never_replays_cookies() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        headers = {"Set-Cookie": "session=topsecret"} if len(requests) == 1 else {}
+        return httpx.Response(200, json=SUCCESS, headers=headers, request=request)
+
+    raw = httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(handler))
+    raw.cookies.set("preexisting", "secret")
+    try:
+        client = Vulners("key", base_url=BASE_URL, http_client=raw)
+        client.search.bulletins("first")
+        client.search.bulletins("second")
+        client.close()
+    finally:
+        raw.close()
+
+    assert [request.headers.get("Cookie") for request in requests] == [None, None]
+    assert not raw.cookies
+
+
+async def test_async_transport_rejects_and_never_replays_cookies() -> None:
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        headers = {"Set-Cookie": "session=topsecret"} if len(requests) == 1 else {}
+        return httpx.Response(200, json=SUCCESS, headers=headers, request=request)
+
+    raw = httpx.AsyncClient(base_url=BASE_URL, transport=httpx.MockTransport(handler))
+    raw.cookies.set("preexisting", "secret")
+    try:
+        client = AsyncVulners("key", base_url=BASE_URL, http_client=raw)
+        await client.search.bulletins("first")
+        await client.search.bulletins("second")
+        await client.aclose()
+    finally:
+        await raw.aclose()
+
+    assert [request.headers.get("Cookie") for request in requests] == [None, None]
+    assert not raw.cookies
 
 
 @respx.mock

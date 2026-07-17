@@ -5,6 +5,9 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable, Mapping
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from http.cookiejar import Cookie, DefaultCookiePolicy
 from importlib.util import find_spec
 from random import SystemRandom
 from typing import TYPE_CHECKING, Final, TypeAlias, TypeVar
@@ -13,6 +16,7 @@ import httpx
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from urllib.request import Request as URLRequest
 
 from ._exceptions import (
     AuthenticationError,
@@ -43,14 +47,31 @@ def _request_headers(api_key: str) -> dict[str, str]:
     return {"User-Agent": _USER_AGENT, "X-Api-Key": api_key}
 
 
-def _parse_retry_after(response: httpx.Response) -> float | None:
+class _RejectCookiesPolicy(DefaultCookiePolicy):
+    """Reject response cookies and prevent a client jar from replaying them."""
+
+    def set_ok(self, cookie: Cookie, request: URLRequest) -> bool:
+        return False
+
+    def return_ok(self, cookie: Cookie, request: URLRequest) -> bool:
+        return False
+
+
+def _parse_retry_after(response: httpx.Response, *, now: datetime | None = None) -> float | None:
     value = response.headers.get("Retry-After")
     if value is None:
         return None
     try:
         return max(float(value), 0.0)
     except ValueError:
-        return None
+        try:
+            retry_at = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        current = now or datetime.now(timezone.utc)
+        return max((retry_at - current).total_seconds(), 0.0)
 
 
 def _response_object(payload: JSONValue) -> Mapping[str, object] | None:
@@ -151,6 +172,13 @@ class _TransportBase:
         self._rate_limit = rate_limit
         self._buckets: dict[str, TokenBucket] = {}
 
+    def __repr__(self) -> str:
+        """Return transport diagnostics without exposing the API key."""
+        return (
+            f"{type(self).__name__}(base_url={self.base_url!r}, "
+            f"retries={self._retries!r}, rate_limit={self._rate_limit!r})"
+        )
+
     def _bucket_for(self, path: str) -> TokenBucket:
         return self._buckets.setdefault(path, TokenBucket())
 
@@ -182,6 +210,8 @@ class SyncTransport(_TransportBase):
             http2=_HTTP2_AVAILABLE,
             follow_redirects=True,
         )
+        self._client.cookies.clear()
+        self._client.cookies.jar.set_policy(_RejectCookiesPolicy())
 
     def close(self) -> None:
         """Close an internally managed HTTPX client."""
@@ -213,6 +243,7 @@ class SyncTransport(_TransportBase):
                     raise VulnersError("Unable to reach the Vulners API") from error
                 time.sleep(_retry_delay(attempt))
                 continue
+            self._client.cookies.clear()
             response.headers.pop("set-cookie", None)
             self._update_rate_limit(path, response)
             if response.status_code in _RETRYABLE_STATUS_CODES and attempt < self._retries:
@@ -235,12 +266,8 @@ class SyncTransport(_TransportBase):
         """Make an API request and return its parsed payload."""
         payload = dict(json) if json is not None else None
         query = dict(params) if params is not None else None
-        if add_api_key:
-            if payload is not None:
-                payload["apiKey"] = self._api_key
-            else:
-                query = query or {}
-                query["apiKey"] = self._api_key
+        if add_api_key and payload is not None:
+            payload["apiKey"] = self._api_key
 
         def send(headers: Mapping[str, str]) -> httpx.Response:
             return self._client.request(
@@ -286,6 +313,7 @@ class SyncTransport(_TransportBase):
                 bucket.consume()
             try:
                 with self._client.stream(method, path, params=params, headers=headers) as response:
+                    self._client.cookies.clear()
                     response.headers.pop("set-cookie", None)
                     self._update_rate_limit(path, response)
                     if response.status_code in _RETRYABLE_STATUS_CODES and attempt < self._retries:
@@ -330,6 +358,8 @@ class AsyncTransport(_TransportBase):
             http2=_HTTP2_AVAILABLE,
             follow_redirects=True,
         )
+        self._client.cookies.clear()
+        self._client.cookies.jar.set_policy(_RejectCookiesPolicy())
 
     async def aclose(self) -> None:
         """Close an internally managed asynchronous HTTPX client."""
@@ -359,6 +389,7 @@ class AsyncTransport(_TransportBase):
                     raise VulnersError("Unable to reach the Vulners API") from error
                 await asyncio.sleep(_retry_delay(attempt))
                 continue
+            self._client.cookies.clear()
             response.headers.pop("set-cookie", None)
             self._update_rate_limit(path, response)
             if response.status_code in _RETRYABLE_STATUS_CODES and attempt < self._retries:
@@ -381,12 +412,8 @@ class AsyncTransport(_TransportBase):
         """Make an API request and return its parsed payload without blocking the event loop."""
         payload = dict(json) if json is not None else None
         query = dict(params) if params is not None else None
-        if add_api_key:
-            if payload is not None:
-                payload["apiKey"] = self._api_key
-            else:
-                query = query or {}
-                query["apiKey"] = self._api_key
+        if add_api_key and payload is not None:
+            payload["apiKey"] = self._api_key
 
         async def send(headers: Mapping[str, str]) -> httpx.Response:
             return await self._client.request(
@@ -428,6 +455,7 @@ class AsyncTransport(_TransportBase):
                 async with self._client.stream(
                     method, path, params=params, headers=headers
                 ) as response:
+                    self._client.cookies.clear()
                     response.headers.pop("set-cookie", None)
                     self._update_rate_limit(path, response)
                     if response.status_code in _RETRYABLE_STATUS_CODES and attempt < self._retries:

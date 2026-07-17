@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import json
+import logging
+from typing import TYPE_CHECKING
 
 import httpx
 import respx
 
 from vulners import AsyncVulners, Vulners
 from vulners.types import LuceneSubscriptionQuery, PollingSubscriptionDelivery
+
+if TYPE_CHECKING:
+    import pytest
 
 BASE_URL = "https://vulners.test"
 
@@ -101,6 +106,13 @@ def test_sync_subscription_namespaces() -> None:
 
     add_call = respx.calls.last.request
     assert add_call is not None
+    legacy_get_calls = [
+        call
+        for call in respx.calls
+        if call.request.method == "GET" and "/api/v3/subscriptions/" in call.request.url.path
+    ]
+    assert legacy_get_calls
+    assert all("apiKey" not in call.request.url.params for call in legacy_get_calls)
 
 
 @respx.mock
@@ -131,3 +143,81 @@ async def test_async_subscription_namespaces() -> None:
 
     bodies = [json.loads(call.request.content) for call in respx.calls if call.request.content]
     assert any(body.get("apiKey") == "key" for body in bodies)
+    legacy_get_calls = [
+        call
+        for call in respx.calls
+        if call.request.method == "GET" and "/api/v3/subscriptions/" in call.request.url.path
+    ]
+    assert legacy_get_calls
+    assert all("apiKey" not in call.request.url.params for call in legacy_get_calls)
+
+
+@respx.mock
+def test_legacy_get_auth_never_places_api_key_in_url_or_logs(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    marker = "SUPERSECRETKEY"
+    route = respx.get(f"{BASE_URL}/api/v3/subscriptions/listEmailSubscriptions/").mock(
+        return_value=httpx.Response(200, json={"result": "OK", "data": {"subscriptions": []}})
+    )
+    caplog.set_level(logging.INFO, logger="httpx")
+
+    with Vulners(marker, base_url=BASE_URL) as client:
+        assert client.subscriptions.email.list() == ()
+
+    request = route.calls[0].request
+    assert request.headers["X-Api-Key"] == marker
+    assert "apiKey" not in request.url.params
+    assert marker not in str(request.url)
+    assert marker not in caplog.text
+
+
+@respx.mock
+def test_v4_subscription_uses_documented_camel_case_payload_and_accepts_snake_case() -> None:
+    create = respx.post(f"{BASE_URL}/api/v4/subscriptions/create/").mock(
+        return_value=httpx.Response(200, json={"result": {"id": "sub-1"}})
+    )
+    respx.get(f"{BASE_URL}/api/v4/subscriptions/get/").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": {
+                    "id": "sub-1",
+                    "name": "Critical",
+                    "bulletin_fields": ["title"],
+                    "is_active": False,
+                    "timestamp_source": "published",
+                    "send_empty_result": True,
+                }
+            },
+        )
+    )
+
+    with Vulners("key", base_url=BASE_URL) as client:
+        client.subscriptions.create(
+            "Critical",
+            _query(),
+            _delivery(),
+            license_id="license-1",
+            bulletin_fields=("title",),
+            is_active=False,
+            timestamp_source="published",
+            send_empty_result=True,
+        )
+        subscription = client.subscriptions.get("sub-1")
+
+    payload = json.loads(create.calls[0].request.content)
+    assert payload["licenseId"] == "license-1"
+    assert payload["bulletinFields"] == ["title"]
+    assert payload["isActive"] is False
+    assert payload["timestampSource"] == "published"
+    assert payload["sendEmptyResult"] is True
+    assert subscription.bulletin_fields == ("title",)
+    assert subscription.is_active is False
+    assert subscription.timestamp_source == "published"
+    assert subscription.send_empty_result is True
+    get_call = next(
+        call for call in respx.calls if call.request.url.path == "/api/v4/subscriptions/get/"
+    )
+    assert get_call.request.url.params["subscription_id"] == "sub-1"
+    assert "id" not in get_call.request.url.params
