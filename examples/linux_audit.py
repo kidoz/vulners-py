@@ -1,6 +1,10 @@
 """Audit one installed Ubuntu package."""
 
+from _env import load_dotenv
+
 from vulners import Vulners
+
+load_dotenv()
 
 with Vulners() as client:
     result = client.audit.linux(
