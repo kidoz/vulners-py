@@ -9,8 +9,7 @@ from ._exceptions import (
     VulnersAPIError,
     VulnersError,
 )
-
-__version__ = "0.1.0"
+from ._version import __version__
 
 __all__ = [
     "AsyncVulners",

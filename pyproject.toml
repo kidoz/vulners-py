@@ -1,6 +1,6 @@
 [project]
 name = "vulners-py"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A modern, strictly typed Python SDK for the Vulners API."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,6 +29,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/vulners"]
 
+[tool.hatch.version]
+path = "src/vulners/_version.py"
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
@@ -44,7 +47,7 @@ ignore = ["S101"]
 strict = true
 warn_unreachable = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
-exclude = ["^tests/"]
+exclude = ["^tests/(?!typecheck_api\\.py$)"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

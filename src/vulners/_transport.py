@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable, Mapping
-from importlib.metadata import PackageNotFoundError, version
 from importlib.util import find_spec
 from random import SystemRandom
 from typing import TYPE_CHECKING, Final, TypeAlias, TypeVar
@@ -25,6 +24,7 @@ from ._exceptions import (
 )
 from ._rate_limit import TokenBucket
 from ._serde import JSONValue, json_loads
+from ._version import __version__
 
 HTTPMethod: TypeAlias = str
 QueryValue: TypeAlias = str | int | float | bool
@@ -36,14 +36,7 @@ _HTTP2_AVAILABLE: Final = find_spec("h2") is not None
 _JITTER_RANDOM: Final = SystemRandom()
 
 
-def _package_version() -> str:
-    try:
-        return version("vulners-py")
-    except PackageNotFoundError:  # pragma: no cover - editable/source checkout without install
-        return "0.0.0"
-
-
-_USER_AGENT: Final = f"vulners-py/{_package_version()}"
+_USER_AGENT: Final = f"vulners-py/{__version__}"
 
 
 def _request_headers(api_key: str) -> dict[str, str]:

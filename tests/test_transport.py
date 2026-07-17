@@ -15,6 +15,7 @@ from vulners import (
     Vulners,
     VulnersAPIError,
     VulnersError,
+    __version__,
 )
 from vulners._transport import _parse_retry_after, _rate_limit_from, _retry_delay, parse_response
 
@@ -24,6 +25,17 @@ if TYPE_CHECKING:
 BASE_URL = "https://vulners.test"
 LUCENE_URL = f"{BASE_URL}/api/v3/search/lucene/"
 SUCCESS = {"result": "OK", "data": {"search": [], "total": 0}}
+
+
+@respx.mock
+def test_version_and_user_agent_are_consistent() -> None:
+    route = respx.post(LUCENE_URL).mock(return_value=httpx.Response(200, json=SUCCESS))
+    with Vulners("key", base_url=BASE_URL) as client:
+        client.search.bulletins("test")
+
+    assert __version__ == "1.0.0"
+    assert route.calls[0].request.headers["User-Agent"] == f"vulners-py/{__version__}"
+    assert route.calls[0].request.headers["X-Api-Key"] == "key"
 
 
 @respx.mock

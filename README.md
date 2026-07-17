@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.0-orange.svg)](CHANGELOG.md)
 
 A modern, strictly typed Python SDK for the [Vulners API](https://docs.vulners.com/docs/api/).
 It provides matching synchronous and asynchronous clients, immutable Pydantic v2 models, resilient
@@ -61,6 +61,16 @@ set +a
 The key can also be passed explicitly as `Vulners(api_key="...")`. Client representations never
 contain the key.
 
+Before wiring the SDK into your app, confirm the key in your `.env` is accepted with the bundled
+preflight (one cheap, read-only call; exits `0` on success, `2` when no key is set):
+
+```bash
+uv run python examples/check_connection.py        # synchronous
+uv run python examples/async_check_connection.py  # asynchronous
+```
+
+See [`examples/`](examples/) for runnable snippets that load `VULNERS_API_KEY` from `.env`.
+
 ## Quick start
 
 ### Synchronous
@@ -103,7 +113,8 @@ asyncio.run(main())
 | `audit` | Software, host, Linux, library, classic OS, Windows, CVE, SBOM, and Smart Audit |
 | `archive` | v3/v4 collections, incremental updates, distributives, and Getsploit downloads |
 | `reports` | Vulnerability, IP, scan, and host reports |
-| `subscriptions` | v4 lifecycle, plus legacy email subscriptions under `.email` and polling/webhook subscriptions under `.webhooks` |
+| `subscriptions` | v4 lifecycle plus legacy email subscriptions under `.email` |
+| `webhooks` | Legacy polling/webhook subscriptions |
 | `stix` | STIX bundle generation by bulletin ID |
 | `misc` | Suggestions, autocomplete, CPE lookup, and WAF rules |
 
@@ -123,8 +134,8 @@ with Vulners() as client:
     sbom = client.audit.sbom(Path("bom.json"))
 ```
 
-Smart Audit is a preview endpoint billed per submitted software string. Calling
-`client.audit.smart(...)` may incur account charges.
+[Smart Audit](https://docs.vulners.com/docs/api/smart-audit/) is a preview endpoint billed per
+submitted software string. Calling `client.audit.smart(...)` may incur account charges.
 
 ### Archive examples
 
@@ -149,11 +160,10 @@ and streams the response without loading the archive into memory.
 
 ```python
 from vulners import Vulners
-from vulners.types import SubscriptionDelivery, SubscriptionQuery
+from vulners.types import LuceneSubscriptionQuery, WebhookSubscriptionDelivery
 
-query = SubscriptionQuery(type="query", query="cvss:[9 TO *] AND family:cve")
-delivery = SubscriptionDelivery(
-    type="webhook",
+query = LuceneSubscriptionQuery(query="cvss:[9 TO *] AND family:cve")
+delivery = WebhookSubscriptionDelivery(
     address="https://example.com/vulners",
     crontab="0 * * * *",
 )
@@ -163,8 +173,8 @@ with Vulners() as client:
     print(created.id)
 ```
 
-Create, update, and delete calls mutate remote account state. Legacy email and polling methods are
-kept only in their explicit `subscriptions.email` and `subscriptions.webhooks` namespaces.
+Create, update, and delete calls mutate remote account state. Legacy email subscriptions are under
+`client.subscriptions.email`; legacy polling subscriptions are under `client.webhooks`.
 
 ## Error handling
 

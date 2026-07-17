@@ -867,7 +867,6 @@ wheels = [
 
 [[package]]
 name = "vulners-py"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
@@ -899,7 +898,7 @@ requires-dist = [
     { name = "orjson", marker = "extra == 'orjson'", specifier = ">=3.10" },
     { name = "pydantic", specifier = ">=2.7" },
 ]
-provides-extras = ["orjson", "http2"]
+provides-extras = ["http2", "orjson"]
 
 [package.metadata.requires-dev]
 dev = [
