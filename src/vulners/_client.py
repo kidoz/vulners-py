@@ -8,7 +8,18 @@ from typing import Self
 import httpx  # noqa: TC002 - HTTPX client classes are instantiated at runtime.
 
 from ._transport import AsyncTransport, SyncTransport
+from .resources.archive import ArchiveResource, AsyncArchiveResource
+from .resources.audit import AsyncAuditResource, AuditResource
+from .resources.documents import AsyncDocumentsResource, DocumentsResource
+from .resources.misc import AsyncMiscResource, AsyncSTIXResource, MiscResource, STIXResource
+from .resources.reports import AsyncReportsResource, ReportsResource
 from .resources.search import AsyncSearchResource, SearchResource
+from .resources.subscriptions import (
+    AsyncSubscriptionsResource,
+    AsyncWebhooksResource,
+    SubscriptionsResource,
+    WebhooksResource,
+)
 
 _DEFAULT_BASE_URL = "https://vulners.com"
 
@@ -56,6 +67,14 @@ class Vulners:
             http_client=http_client,
         )
         self.search = SearchResource(self._transport)
+        self.documents = DocumentsResource(self._transport, self.search)
+        self.audit = AuditResource(self._transport)
+        self.archive = ArchiveResource(self._transport)
+        self.reports = ReportsResource(self._transport)
+        self.subscriptions = SubscriptionsResource(self._transport)
+        self.webhooks = WebhooksResource(self._transport)
+        self.stix = STIXResource(self._transport)
+        self.misc = MiscResource(self._transport)
 
     def __enter__(self) -> Self:
         """Enter the client context."""
@@ -108,6 +127,14 @@ class AsyncVulners:
             http_client=http_client,
         )
         self.search = AsyncSearchResource(self._transport)
+        self.documents = AsyncDocumentsResource(self._transport, self.search)
+        self.audit = AsyncAuditResource(self._transport)
+        self.archive = AsyncArchiveResource(self._transport)
+        self.reports = AsyncReportsResource(self._transport)
+        self.subscriptions = AsyncSubscriptionsResource(self._transport)
+        self.webhooks = AsyncWebhooksResource(self._transport)
+        self.stix = AsyncSTIXResource(self._transport)
+        self.misc = AsyncMiscResource(self._transport)
 
     async def __aenter__(self) -> Self:
         """Enter the asynchronous client context."""
