@@ -2,39 +2,22 @@
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](#project-status)
+[![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)](CHANGELOG.md)
 
-A modern, strictly typed Python SDK for the [Vulners API](https://vulners.com).
-It provides synchronous and asynchronous clients, typed Pydantic v2 response models,
-and resilient HTTP handling without the legacy wrapper's compatibility aliases.
-
-> **Alpha:** version 0.1.0 implements the search namespace. Additional Vulners API
-> namespaces will be added incrementally.
-
-## Contents
-
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Quick start](#quick-start)
-- [Search](#search)
-- [Configuration](#configuration)
-- [Error handling](#error-handling)
-- [Migration from the legacy wrapper](#migration-from-the-legacy-wrapper)
-- [Development](#development)
-- [Project status](#project-status)
-- [License](#license)
+A modern, strictly typed Python SDK for the [Vulners API](https://docs.vulners.com/docs/api/).
+It provides matching synchronous and asynchronous clients, immutable Pydantic v2 models, resilient
+HTTP handling, and no deprecated top-level compatibility aliases.
 
 ## Features
 
-- Synchronous `Vulners` and asynchronous `AsyncVulners` clients.
-- Typed, immutable search pages and documents powered by Pydantic v2.
-- Bulletin and exploit search with transparent sync and async pagination.
-- API-key authentication from the constructor or `VULNERS_API_KEY` environment variable.
-- Retries with exponential backoff, `Retry-After` support, and optional server-advertised
-  rate limiting.
-- Typed exceptions for authentication, rate-limit, not-found, server, and API-envelope
-  errors.
+- Search, document retrieval, software/host/package/SBOM audits, and Smart Audit.
+- ZIP, gzip, JSON, and NDJSON archive decoding with a stream-to-disk option.
+- Reports, v4 subscriptions, legacy email/polling subscriptions, STIX, CPE, and search helpers.
+- API-key loading from `VULNERS_API_KEY`, including `.env`-based development workflows.
+- Retry/backoff, `Retry-After`, per-endpoint rate limiting, HTTP/2 support, and typed exceptions.
+- Strict mypy, Ruff, and pytest checks with sync/async contract tests.
+
+VScanner is intentionally excluded because it is deprecated.
 
 ## Requirements
 
@@ -43,43 +26,58 @@ and resilient HTTP handling without the legacy wrapper's compatibility aliases.
 
 ## Installation
 
-Install with your preferred package manager:
-
 ```bash
 uv add vulners-py
 ```
+
+or:
 
 ```bash
 pip install vulners-py
 ```
 
-Install the optional HTTP/2 or JSON acceleration extras when needed:
+Optional performance extras:
 
 ```bash
 uv add "vulners-py[http2,orjson]"
 ```
 
-## Quick start
+## Authentication
 
-Set your API key once in the environment:
+Create a local `.env` file that is not committed:
 
-```bash
-export VULNERS_API_KEY="your-api-key"
+```dotenv
+VULNERS_API_KEY=your-api-key
 ```
 
-### Synchronous client
+Load it into the environment before running an application:
+
+```bash
+set -a
+source .env
+set +a
+```
+
+The key can also be passed explicitly as `Vulners(api_key="...")`. Client representations never
+contain the key.
+
+## Quick start
+
+### Synchronous
 
 ```python
 from vulners import Vulners
 
 with Vulners() as client:
     page = client.search.bulletins("wordpress 4.7", limit=10)
+    document = client.documents.get("CVE-2024-23622")
 
 for bulletin in page.documents:
     print(bulletin.id, bulletin.title)
+print(document)
 ```
 
-### Asynchronous client
+### Asynchronous
 
 ```python
 import asyncio
@@ -89,65 +87,87 @@ from vulners import AsyncVulners
 
 async def main() -> None:
     async with AsyncVulners() as client:
-        page = await client.search.bulletins("wordpress 4.7", limit=10)
-
-    for bulletin in page.documents:
-        print(bulletin.id, bulletin.title)
+        async for bulletin in client.search.exploits_iter("CVE-2021-44228"):
+            print(bulletin.id)
 
 
 asyncio.run(main())
 ```
 
-You can also pass the key explicitly: `Vulners(api_key="your-api-key")`.
+## Namespaces
 
-## Search
+| Namespace | Capabilities |
+| --- | --- |
+| `search` | Bulletins, exploits, iterators, history, and web vulnerability matching |
+| `documents` | Get one/many documents, references, KB seeds, and KB updates |
+| `audit` | Software, host, Linux, library, classic OS, Windows, CVE, SBOM, and Smart Audit |
+| `archive` | v3/v4 collections, incremental updates, distributives, and Getsploit downloads |
+| `reports` | Vulnerability, IP, scan, and host reports |
+| `subscriptions` | v4 lifecycle plus legacy email subscriptions under `.email` |
+| `webhooks` | Legacy polling subscription lifecycle and delivery reads |
+| `stix` | STIX bundle generation by bulletin ID |
+| `misc` | Suggestions, autocomplete, CPE lookup, and WAF rules |
 
-`client.search` currently provides the following methods:
+### Audit examples
 
 ```python
+from pathlib import Path
+
+from vulners import Vulners
+from vulners.types import AuditSoftware
+
+with Vulners() as client:
+    matches = client.audit.software(
+        (AuditSoftware(product="curl", vendor="haxx", version="8.0"),)
+    )
+    packages = client.audit.library(("pkg:pypi/requests@2.20.0",))
+    sbom = client.audit.sbom(Path("bom.json"))
+```
+
+Smart Audit is a preview endpoint billed per submitted software string. Calling
+`client.audit.smart(...)` may incur account charges.
+
+### Archive examples
+
+```python
+from pathlib import Path
+
 from vulners import Vulners
 
 with Vulners() as client:
-    # A typed SearchPage, containing immutable SearchDocument instances.
-    page = client.search.bulletins("type:cve AND wordpress", limit=20, offset=0)
-
-    # Iterate all bulletin documents across pages.
-    for bulletin in client.search.bulletins_iter("wordpress"):
-        print(bulletin.id)
-
-    # Search public exploits, optionally matching particular fields.
-    exploits = client.search.exploits("CVE-2024-1234", lookup_fields=("title",))
+    records = client.archive.collection_update("exploitdb", "2026-07-17T00:00:00")
+    client.archive.collection_v4(
+        "exploitdb",
+        raw=True,
+        destination=Path("exploitdb.ndjson.gz"),
+    )
 ```
 
-For asynchronous iteration, use `async for` with the corresponding iterator:
+Decoded archive calls return immutable `ArchiveRecord` objects. `raw=True` requires a destination
+and streams the response without loading the archive into memory.
+
+### Subscriptions
 
 ```python
-async for bulletin in client.search.bulletins_iter("wordpress"):
-    print(bulletin.id)
+from vulners import Vulners
+from vulners.types import SubscriptionDelivery, SubscriptionQuery
+
+query = SubscriptionQuery(type="query", query="cvss:[9 TO *] AND family:cve")
+delivery = SubscriptionDelivery(
+    type="webhook",
+    address="https://example.com/vulners",
+    crontab="0 * * * *",
+)
+
+with Vulners() as client:
+    created = client.subscriptions.create("Critical CVEs", query, delivery)
+    print(created.id)
 ```
 
-Use `await client.search.bulletins(...)` and `await client.search.exploits(...)` for
-single-page asynchronous searches.
-
-## Configuration
-
-Both clients accept the same settings, except that the asynchronous client accepts an
-`httpx.AsyncClient` escape hatch.
-
-| Setting | Default | Purpose |
-| --- | --- | --- |
-| `api_key` | `VULNERS_API_KEY` | Vulners API key. |
-| `base_url` | `"https://vulners.com"` | API base URL, useful for testing. |
-| `timeout` | `60.0` | Per-request HTTP timeout in seconds or an `httpx.Timeout`. |
-| `proxy` | `None` | Optional proxy URL. |
-| `retries` | `3` | Maximum total attempts for retryable requests. |
-| `rate_limit` | `True` | Honor rate-limit headers returned by the API. |
-| `http_client` | `None` | Caller-owned configured HTTPX client. |
+Create, update, and delete calls mutate remote account state. Legacy email and polling methods are
+kept only in their explicit `subscriptions.email` and `webhooks` namespaces.
 
 ## Error handling
-
-All SDK exceptions inherit from `VulnersError`. Handle the typed API errors when a
-specific recovery action is useful:
 
 ```python
 from vulners import AuthenticationError, RateLimitError, Vulners, VulnersAPIError
@@ -156,48 +176,58 @@ try:
     with Vulners() as client:
         client.search.bulletins("wordpress")
 except AuthenticationError:
-    print("Check VULNERS_API_KEY.")
+    print("Check VULNERS_API_KEY")
 except RateLimitError as error:
-    print(f"Try again after {error.retry_after!r} seconds.")
+    print(f"Retry after {error.retry_after!r} seconds")
 except VulnersAPIError as error:
     print(f"Vulners API error {error.status_code}: {error.message}")
 ```
 
 ## Migration from the legacy wrapper
 
-The rewrite uses namespaced methods and does not include deprecated top-level aliases.
-
 | Legacy wrapper | `vulners-py` |
 | --- | --- |
-| `search.search_bulletins(query)` | `client.search.bulletins(query)` |
-| `search.search_bulletins_all(query)` | `client.search.bulletins_iter(query)` |
-| `search.search_exploits(query)` | `client.search.exploits(query)` |
-| `search.search_exploits_all(query)` | `client.search.exploits_iter(query)` |
+| `find(query)` / `search_bulletins(query)` | `client.search.bulletins(query)` |
+| `find_all(query)` | `client.search.bulletins_iter(query)` |
+| `find_exploit(query)` | `client.search.exploits(query)` |
+| `get_bulletin(id)` | `client.documents.get(id)` |
+| `audit_software(...)` | `client.audit.software(...)` |
+| `winaudit(...)` | `client.audit.winaudit(...)` |
+| `vulnssummary_report(...)` | `client.reports.vulns_summary(...)` |
+
+No deprecated top-level aliases or `DeprecationWarning` shims are included.
 
 ## Development
 
-This project uses [uv](https://docs.astral.sh/uv/) and [just](https://just.systems/).
-
 ```bash
-uv sync
+uv sync --all-extras
 just check
 ```
 
 Available recipes:
 
 ```bash
-just fmt       # format code
-just lint      # verify formatting and linting
-just typecheck # run strict mypy
-just test      # run the test suite with coverage
-just check     # run all verification steps
+just fmt
+just lint
+just typecheck
+just test
+just check
 ```
 
-## Project status
+Tests use mocked HTTP contracts by default. Run the bounded, read-only integration suite with a key
+loaded from `.env`:
 
-`vulners-py` is in alpha. The public API is intentionally small while the typed rewrite
-is built and verified namespace by namespace. The current release supports search only.
+```bash
+set -a
+source .env
+set +a
+VULNERS_LIVE=1 uv run pytest tests/test_integration.py
+```
+
+The integration suite deliberately excludes billed Smart Audit/SBOM requests, archive bulk
+downloads, and subscription mutations.
 
 ## License
 
-Distributed under the [MIT License](LICENSE). Copyright © 2026 Aleksandr Pavlov.
+Distributed under the [MIT License](LICENSE). Copyright © 2026 Aleksandr Pavlov
+<ckidoz@gmail.com>.
