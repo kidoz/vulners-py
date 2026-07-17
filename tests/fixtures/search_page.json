@@ -1,0 +1,17 @@
+{
+  "result": "OK",
+  "data": {
+    "search": [
+      {
+        "_source": {
+          "id": "CVE-2024-0001",
+          "title": "Example vulnerability",
+          "type": "cve",
+          "bulletinFamily": "NVD"
+        }
+      }
+    ],
+    "total": 1,
+    "maxSearchSize": 100
+  }
+}

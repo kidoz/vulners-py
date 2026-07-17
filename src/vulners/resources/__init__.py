@@ -1,0 +1,1 @@
+"""Namespaced Vulners API resources."""
