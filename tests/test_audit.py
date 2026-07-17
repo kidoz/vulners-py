@@ -51,7 +51,13 @@ async def test_async_cve_audit_returns_typed_result() -> None:
             json={
                 "result": {
                     "cve": "CVE-2024-0001",
-                    "affectedCpe": ["cpe:2.3:a:vendor:product:*:*:*:*:*:*:*:*"],
+                    "affectedCpe": [
+                        {
+                            "id": "ADV-1",
+                            "type": "cve",
+                            "cpeConfigurations": {"vulnersCpeConfiguration": []},
+                        }
+                    ],
                     "affectedPackages": [],
                 }
             },

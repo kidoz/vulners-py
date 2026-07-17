@@ -29,7 +29,14 @@ def _routes() -> None:
     )
     respx.get(f"{BASE_URL}/api/v4/stix/bundle").mock(
         return_value=httpx.Response(
-            200, json={"result": {"type": "bundle", "id": "bundle--1", "objects": []}}
+            200,
+            json={
+                "result": {
+                    "type": "bundle",
+                    "id": "bundle--1",
+                    "objects": [{"type": "vulnerability", "id": "vulnerability--1"}],
+                }
+            },
         )
     )
 
@@ -42,7 +49,9 @@ def test_misc_and_stix_sync() -> None:
         assert client.misc.autocomplete("cv") == ("type:cve", "cvss")
         assert client.misc.cpe("curl", vendor="haxx", size=5).best_match == "cpe:example"
         assert client.misc.waf_rules() == ("rule",)
-        assert client.stix.bundle("CVE-2024-0001", opencti_id="x").id == "bundle--1"
+        bundle = client.stix.bundle("CVE-2024-0001", opencti_id="x")
+        assert bundle.id == "bundle--1"
+        assert bundle.objects[0].type == "vulnerability"
 
 
 @respx.mock

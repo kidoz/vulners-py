@@ -88,7 +88,18 @@ class EmailSubscriptionsResource:
         self._transport = transport
 
     def list(self) -> tuple[EmailSubscription, ...]:
-        """List legacy email subscriptions."""
+        """List email subscriptions via GET /api/v3/subscriptions/listEmailSubscriptions/.
+
+        Args:
+            None.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("GET", _EMAIL_LIST, add_api_key=True)
         subscriptions = data.get("subscriptions", ()) if isinstance(data, Mapping) else ()
         return _EMAIL_SUBSCRIPTIONS_ADAPTER.validate_python(subscriptions)
@@ -102,7 +113,22 @@ class EmailSubscriptionsResource:
         crontab: str | None = None,
         query_type: str = "lucene",
     ) -> EmailSubscription:
-        """Create a legacy email subscription."""
+        """Create an email subscription via POST /api/v3/subscriptions/addEmailSubscription/.
+
+        Args:
+            query: Lucene query or search text.
+            email: Delivery email address.
+            format: Delivery document format.
+            crontab: Cron delivery schedule.
+            query_type: Legacy query language identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload: dict[str, object] = {
             "query": query,
             "email": email,
@@ -122,7 +148,21 @@ class EmailSubscriptionsResource:
         crontab: str | None = None,
         active: bool | None = None,
     ) -> EmailSubscription:
-        """Modify a legacy email subscription."""
+        """Edit an email subscription via POST /api/v3/subscriptions/editEmailSubscription/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            format: Delivery document format.
+            crontab: Cron delivery schedule.
+            active: Whether the subscription is active.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload: dict[str, object] = {"subscriptionid": id}
         if format is not None:
             payload["format"] = format
@@ -134,7 +174,18 @@ class EmailSubscriptionsResource:
         return _EMAIL_SUBSCRIPTION_ADAPTER.validate_python(data)
 
     def delete(self, id: str) -> None:
-        """Delete a legacy email subscription."""
+        """Delete an email subscription via POST /api/v3/subscriptions/removeEmailSubscription/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         self._transport.request(
             "POST", _EMAIL_DELETE, json={"subscriptionid": id}, add_api_key=True
         )
@@ -146,16 +197,37 @@ class SubscriptionsResource:
     def __init__(self, transport: SyncTransport) -> None:
         self._transport = transport
         self.email = EmailSubscriptionsResource(transport)
-        self.webhooks = WebhooksResource(transport)
 
     def list(self) -> tuple[Subscription, ...]:
-        """List subscriptions through ``GET /api/v4/subscriptions/list/``."""
+        """List subscriptions through ``GET /api/v4/subscriptions/list/``.
+
+        Args:
+            None.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return _SUBSCRIPTIONS_ADAPTER.validate_python(
             _result(self._transport.request("GET", _LIST))
         )
 
     def get(self, id: str) -> Subscription:
-        """Get one subscription through ``GET /api/v4/subscriptions/get/``."""
+        """Get one subscription through ``GET /api/v4/subscriptions/get/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("GET", _GET, params={"subscription_id": id})
         return _SUBSCRIPTION_ADAPTER.validate_python(_result(data))
 
@@ -171,7 +243,25 @@ class SubscriptionsResource:
         timestamp_source: str = "modified",
         send_empty_result: bool = False,
     ) -> SubscriptionID:
-        """Create a subscription through ``POST /api/v4/subscriptions/create/``."""
+        """Create a subscription through ``POST /api/v4/subscriptions/create/``.
+
+        Args:
+            name: Subscription display name.
+            query: Lucene query or search text.
+            delivery: Typed subscription delivery configuration.
+            license_id: Optional Vulners license identifier.
+            bulletin_fields: Bulletin fields included in deliveries.
+            is_active: Whether the subscription starts active.
+            timestamp_source: Bulletin timestamp used for delivery selection.
+            send_empty_result: Whether empty deliveries are emitted.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _subscription_payload(
             name,
             query,
@@ -199,7 +289,26 @@ class SubscriptionsResource:
         timestamp_source: str = "modified",
         send_empty_result: bool = False,
     ) -> SubscriptionID:
-        """Update a subscription through ``PUT /api/v4/subscriptions/update/``."""
+        """Update a subscription through ``PUT /api/v4/subscriptions/update/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            name: Subscription display name.
+            query: Lucene query or search text.
+            delivery: Typed subscription delivery configuration.
+            license_id: Optional Vulners license identifier.
+            bulletin_fields: Bulletin fields included in deliveries.
+            is_active: Whether the subscription starts active.
+            timestamp_source: Bulletin timestamp used for delivery selection.
+            send_empty_result: Whether empty deliveries are emitted.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _subscription_payload(
             name,
             query,
@@ -216,7 +325,18 @@ class SubscriptionsResource:
         )
 
     def delete(self, id: str) -> SubscriptionID:
-        """Delete a subscription through ``DELETE /api/v4/subscriptions/delete/``."""
+        """Delete a subscription through ``DELETE /api/v4/subscriptions/delete/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("DELETE", _DELETE, params={"id": id})
         return _SUBSCRIPTION_ID_ADAPTER.validate_python(_result(data))
 
@@ -228,20 +348,54 @@ class WebhooksResource:
         self._transport = transport
 
     def list(self) -> tuple[PollingSubscription, ...]:
-        """List polling subscriptions."""
+        """List polling subscriptions. through GET /api/v3/subscriptions/listWebhookSubscriptions/.
+
+        Args:
+            None.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("GET", _WEBHOOK_LIST, add_api_key=True)
         subscriptions = data.get("subscriptions", ()) if isinstance(data, Mapping) else ()
         return _POLLING_SUBSCRIPTIONS_ADAPTER.validate_python(subscriptions)
 
     def add(self, query: str) -> PollingSubscription:
-        """Create a polling subscription."""
+        """Create polling via POST /api/v3/subscriptions/addWebhookSubscription/.
+
+        Args:
+            query: Lucene query or search text.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _WEBHOOK_ADD, json={"query": query}, add_api_key=True
         )
         return _POLLING_SUBSCRIPTION_ADAPTER.validate_python(data)
 
     def edit(self, id: str, *, active: bool) -> None:
-        """Change a polling subscription's active state."""
+        """Edit polling via POST /api/v3/subscriptions/editWebhookSubscription/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            active: Whether the subscription is active.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         self._transport.request(
             "POST",
             _WEBHOOK_EDIT,
@@ -249,22 +403,53 @@ class WebhooksResource:
             add_api_key=True,
         )
 
-    def enable(self, id: str) -> None:
-        """Activate a polling subscription."""
-        self.edit(id, active=True)
+    def enable(self, id: str, active: bool) -> None:
+        """Toggle polling via POST /api/v3/subscriptions/editWebhookSubscription/.
 
-    def disable(self, id: str) -> None:
-        """Deactivate a polling subscription."""
-        self.edit(id, active=False)
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            active: Whether the subscription is active.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
+        self.edit(id, active=active)
 
     def delete(self, id: str) -> None:
-        """Delete a polling subscription."""
+        """Delete polling via POST /api/v3/subscriptions/removeWebhookSubscription/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         self._transport.request(
             "POST", _WEBHOOK_DELETE, json={"subscriptionid": id}, add_api_key=True
         )
 
     def read(self, id: str, *, newest_only: bool = True) -> PollingDelivery:
-        """Read stored polling deliveries."""
+        """Read stored polling deliveries. through GET /api/v3/subscriptions/webhook/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            newest_only: Whether only the newest stored delivery is returned.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "GET",
             _WEBHOOK_READ,
@@ -281,7 +466,18 @@ class AsyncEmailSubscriptionsResource:
         self._transport = transport
 
     async def list(self) -> tuple[EmailSubscription, ...]:
-        """List legacy email subscriptions."""
+        """List email subscriptions via GET /api/v3/subscriptions/listEmailSubscriptions/.
+
+        Args:
+            None.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request("GET", _EMAIL_LIST, add_api_key=True)
         subscriptions = data.get("subscriptions", ()) if isinstance(data, Mapping) else ()
         return _EMAIL_SUBSCRIPTIONS_ADAPTER.validate_python(subscriptions)
@@ -295,7 +491,22 @@ class AsyncEmailSubscriptionsResource:
         crontab: str | None = None,
         query_type: str = "lucene",
     ) -> EmailSubscription:
-        """Create a legacy email subscription."""
+        """Create an email subscription via POST /api/v3/subscriptions/addEmailSubscription/.
+
+        Args:
+            query: Lucene query or search text.
+            email: Delivery email address.
+            format: Delivery document format.
+            crontab: Cron delivery schedule.
+            query_type: Legacy query language identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload: dict[str, object] = {
             "query": query,
             "email": email,
@@ -315,7 +526,21 @@ class AsyncEmailSubscriptionsResource:
         crontab: str | None = None,
         active: bool | None = None,
     ) -> EmailSubscription:
-        """Modify a legacy email subscription."""
+        """Edit an email subscription via POST /api/v3/subscriptions/editEmailSubscription/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            format: Delivery document format.
+            crontab: Cron delivery schedule.
+            active: Whether the subscription is active.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload: dict[str, object] = {"subscriptionid": id}
         if format is not None:
             payload["format"] = format
@@ -327,7 +552,18 @@ class AsyncEmailSubscriptionsResource:
         return _EMAIL_SUBSCRIPTION_ADAPTER.validate_python(data)
 
     async def delete(self, id: str) -> None:
-        """Delete a legacy email subscription."""
+        """Delete an email subscription via POST /api/v3/subscriptions/removeEmailSubscription/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         await self._transport.request(
             "POST", _EMAIL_DELETE, json={"subscriptionid": id}, add_api_key=True
         )
@@ -339,16 +575,37 @@ class AsyncSubscriptionsResource:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
         self.email = AsyncEmailSubscriptionsResource(transport)
-        self.webhooks = AsyncWebhooksResource(transport)
 
     async def list(self) -> tuple[Subscription, ...]:
-        """List subscriptions through ``GET /api/v4/subscriptions/list/``."""
+        """List subscriptions through ``GET /api/v4/subscriptions/list/``.
+
+        Args:
+            None.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return _SUBSCRIPTIONS_ADAPTER.validate_python(
             _result(await self._transport.request("GET", _LIST))
         )
 
     async def get(self, id: str) -> Subscription:
-        """Get one subscription through ``GET /api/v4/subscriptions/get/``."""
+        """Get one subscription through ``GET /api/v4/subscriptions/get/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request("GET", _GET, params={"subscription_id": id})
         return _SUBSCRIPTION_ADAPTER.validate_python(_result(data))
 
@@ -364,7 +621,25 @@ class AsyncSubscriptionsResource:
         timestamp_source: str = "modified",
         send_empty_result: bool = False,
     ) -> SubscriptionID:
-        """Create a subscription through ``POST /api/v4/subscriptions/create/``."""
+        """Create a subscription through ``POST /api/v4/subscriptions/create/``.
+
+        Args:
+            name: Subscription display name.
+            query: Lucene query or search text.
+            delivery: Typed subscription delivery configuration.
+            license_id: Optional Vulners license identifier.
+            bulletin_fields: Bulletin fields included in deliveries.
+            is_active: Whether the subscription starts active.
+            timestamp_source: Bulletin timestamp used for delivery selection.
+            send_empty_result: Whether empty deliveries are emitted.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _subscription_payload(
             name,
             query,
@@ -391,7 +666,26 @@ class AsyncSubscriptionsResource:
         timestamp_source: str = "modified",
         send_empty_result: bool = False,
     ) -> SubscriptionID:
-        """Update a subscription through ``PUT /api/v4/subscriptions/update/``."""
+        """Update a subscription through ``PUT /api/v4/subscriptions/update/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            name: Subscription display name.
+            query: Lucene query or search text.
+            delivery: Typed subscription delivery configuration.
+            license_id: Optional Vulners license identifier.
+            bulletin_fields: Bulletin fields included in deliveries.
+            is_active: Whether the subscription starts active.
+            timestamp_source: Bulletin timestamp used for delivery selection.
+            send_empty_result: Whether empty deliveries are emitted.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _subscription_payload(
             name,
             query,
@@ -407,7 +701,18 @@ class AsyncSubscriptionsResource:
         return _SUBSCRIPTION_ID_ADAPTER.validate_python(_result(data))
 
     async def delete(self, id: str) -> SubscriptionID:
-        """Delete a subscription through ``DELETE /api/v4/subscriptions/delete/``."""
+        """Delete a subscription through ``DELETE /api/v4/subscriptions/delete/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request("DELETE", _DELETE, params={"id": id})
         return _SUBSCRIPTION_ID_ADAPTER.validate_python(_result(data))
 
@@ -419,20 +724,54 @@ class AsyncWebhooksResource:
         self._transport = transport
 
     async def list(self) -> tuple[PollingSubscription, ...]:
-        """List polling subscriptions."""
+        """List polling subscriptions. through GET /api/v3/subscriptions/listWebhookSubscriptions/.
+
+        Args:
+            None.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request("GET", _WEBHOOK_LIST, add_api_key=True)
         subscriptions = data.get("subscriptions", ()) if isinstance(data, Mapping) else ()
         return _POLLING_SUBSCRIPTIONS_ADAPTER.validate_python(subscriptions)
 
     async def add(self, query: str) -> PollingSubscription:
-        """Create a polling subscription."""
+        """Create polling via POST /api/v3/subscriptions/addWebhookSubscription/.
+
+        Args:
+            query: Lucene query or search text.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request(
             "POST", _WEBHOOK_ADD, json={"query": query}, add_api_key=True
         )
         return _POLLING_SUBSCRIPTION_ADAPTER.validate_python(data)
 
     async def edit(self, id: str, *, active: bool) -> None:
-        """Change a polling subscription's active state."""
+        """Edit polling via POST /api/v3/subscriptions/editWebhookSubscription/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            active: Whether the subscription is active.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         await self._transport.request(
             "POST",
             _WEBHOOK_EDIT,
@@ -440,22 +779,53 @@ class AsyncWebhooksResource:
             add_api_key=True,
         )
 
-    async def enable(self, id: str) -> None:
-        """Activate a polling subscription."""
-        await self.edit(id, active=True)
+    async def enable(self, id: str, active: bool) -> None:
+        """Toggle polling via POST /api/v3/subscriptions/editWebhookSubscription/.
 
-    async def disable(self, id: str) -> None:
-        """Deactivate a polling subscription."""
-        await self.edit(id, active=False)
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            active: Whether the subscription is active.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
+        await self.edit(id, active=active)
 
     async def delete(self, id: str) -> None:
-        """Delete a polling subscription."""
+        """Delete polling via POST /api/v3/subscriptions/removeWebhookSubscription/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            None.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         await self._transport.request(
             "POST", _WEBHOOK_DELETE, json={"subscriptionid": id}, add_api_key=True
         )
 
     async def read(self, id: str, *, newest_only: bool = True) -> PollingDelivery:
-        """Read stored polling deliveries."""
+        """Read stored polling deliveries. through GET /api/v3/subscriptions/webhook/.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            newest_only: Whether only the newest stored delivery is returned.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request(
             "GET",
             _WEBHOOK_READ,

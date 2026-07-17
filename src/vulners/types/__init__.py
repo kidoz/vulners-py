@@ -2,8 +2,11 @@
 
 from .archive import ArchiveRecord
 from .audit import (
+    AuditAdvisory,
     AuditMatch,
     AuditSoftware,
+    CVEAffectedCPE,
+    CVEAffectedPackage,
     CVEAuditResult,
     KBAuditResult,
     LegacyAuditResult,
@@ -15,7 +18,7 @@ from .audit import (
     WindowsSoftware,
 )
 from .documents import BulletinReferences, BulletinWithReferences, KBSeeds
-from .misc import CPEMatch, STIXBundle
+from .misc import CPEMatch, STIXBundle, STIXObject
 from .reports import HostVulnsRow, IPSummaryRow, ScanListRow, VulnsListRow, VulnsSummaryRow
 from .search import (
     HistoryEntry,
@@ -26,40 +29,58 @@ from .search import (
 )
 from .subscriptions import (
     EmailSubscription,
+    GenericHostSubscriptionQuery,
+    LinuxAuditSubscriptionQuery,
+    LinuxHostSubscriptionQuery,
+    LuceneSubscriptionQuery,
     PollingDelivery,
     PollingSubscription,
+    PollingSubscriptionDelivery,
+    SoftwareSubscriptionQuery,
     Subscription,
     SubscriptionDelivery,
     SubscriptionID,
     SubscriptionQuery,
+    WebhookSubscriptionDelivery,
+    WindowsHostSubscriptionQuery,
 )
 
 __all__ = [
     "ArchiveRecord",
+    "AuditAdvisory",
     "AuditMatch",
     "AuditSoftware",
     "BulletinReferences",
     "BulletinWithReferences",
     "CPEMatch",
+    "CVEAffectedCPE",
+    "CVEAffectedPackage",
     "CVEAuditResult",
     "EmailSubscription",
+    "GenericHostSubscriptionQuery",
     "HistoryEntry",
     "HostVulnsRow",
     "IPSummaryRow",
     "KBAuditResult",
     "KBSeeds",
     "LegacyAuditResult",
+    "LinuxAuditSubscriptionQuery",
+    "LinuxHostSubscriptionQuery",
+    "LuceneSubscriptionQuery",
     "PackageAuditIssue",
     "PackageAuditResult",
     "PollingDelivery",
     "PollingSubscription",
+    "PollingSubscriptionDelivery",
     "SBOMAuditResult",
     "SBOMComponent",
     "STIXBundle",
+    "STIXObject",
     "ScanListRow",
     "SearchDocument",
     "SearchPage",
     "SmartAuditResult",
+    "SoftwareSubscriptionQuery",
     "Subscription",
     "SubscriptionDelivery",
     "SubscriptionID",
@@ -68,5 +89,7 @@ __all__ = [
     "VulnsSummaryRow",
     "WebVulnerability",
     "WebVulnerabilityResult",
+    "WebhookSubscriptionDelivery",
+    "WindowsHostSubscriptionQuery",
     "WindowsSoftware",
 ]

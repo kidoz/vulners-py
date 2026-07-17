@@ -33,17 +33,37 @@ class AuditSoftware(_FrozenModel):
 class AuditMatch(_FrozenModel):
     """Vulnerabilities matched to one audit input."""
 
-    input: Mapping[str, object]
+    input: AuditSoftware | str
     matched_criteria: str | None = None
     vulnerabilities: tuple[SearchDocument, ...]
+
+
+class CVEAffectedPackage(_FrozenModel):
+    """One package version range affected by a CVE."""
+
+    id: str
+    name: str
+    range: str
+    registry: str
+    distro: tuple[str, ...] = ()
+    arch: tuple[str, ...] = ()
+    classifier: tuple[str, ...] = ()
+
+
+class CVEAffectedCPE(_FrozenModel):
+    """One CPE configuration affected by a CVE."""
+
+    id: str
+    type: str
+    cpe_configurations: Mapping[str, object] = Field(alias="cpeConfigurations")
 
 
 class CVEAuditResult(_FrozenModel):
     """Affected products and packages for one CVE."""
 
     cve: str
-    affected_cpe: tuple[object, ...] = Field(default=(), alias="affectedCpe")
-    affected_packages: tuple[object, ...] = Field(default=(), alias="affectedPackages")
+    affected_cpe: tuple[CVEAffectedCPE, ...] = Field(default=(), alias="affectedCpe")
+    affected_packages: tuple[CVEAffectedPackage, ...] = Field(default=(), alias="affectedPackages")
 
 
 class SmartAuditResult(_FrozenModel):
@@ -56,13 +76,29 @@ class SmartAuditResult(_FrozenModel):
     vulnerabilities: tuple[SearchDocument, ...]
 
 
+class AuditAdvisory(_FrozenModel):
+    """A vulnerability advisory attached to an audited package."""
+
+    id: str
+    match: str | None = None
+    registry: str | None = None
+    distro: tuple[str, ...] | None = None
+    arch: tuple[str, ...] | None = None
+    classifier: tuple[str, ...] | None = None
+    type: str | None = None
+    title: str | None = None
+    description: str | None = None
+    published: str | None = None
+    cvelist: tuple[str, ...] = ()
+
+
 class PackageAuditIssue(_FrozenModel):
     """One vulnerable package returned by Linux or library audit."""
 
     package: str
     version: str
     fixed_version: str | None = Field(default=None, alias="fixedVersion")
-    applicable_advisories: tuple[SearchDocument, ...] = Field(
+    applicable_advisories: tuple[AuditAdvisory, ...] = Field(
         default=(), alias="applicableAdvisories"
     )
 
@@ -71,7 +107,7 @@ class PackageAuditResult(_FrozenModel):
     """Linux or package-library audit result."""
 
     issues: tuple[PackageAuditIssue, ...]
-    errors: Mapping[str, object]
+    errors: Mapping[str, str]
     total_packages: int = Field(alias="totalPackages")
 
 
@@ -81,6 +117,7 @@ class LegacyAuditResult(_FrozenModel):
     id: str | None = None
     cvelist: tuple[str, ...] = ()
     vulnerabilities: tuple[str, ...] = ()
+    cumulative_fix: str | None = Field(default=None, alias="cumulativeFix")
 
 
 class KBAuditResult(_FrozenModel):
@@ -104,7 +141,7 @@ class SBOMComponent(_FrozenModel):
     package: str
     version: str
     fixed_version: str | None = Field(default=None, alias="fixedVersion")
-    applicable_advisories: tuple[SearchDocument, ...] = Field(
+    applicable_advisories: tuple[AuditAdvisory, ...] = Field(
         default=(), alias="applicableAdvisories"
     )
 

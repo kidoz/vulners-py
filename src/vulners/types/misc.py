@@ -1,5 +1,7 @@
 """Typed models for miscellaneous Vulners endpoints."""
 
+from __future__ import annotations
+
 from pydantic import BaseModel, ConfigDict, TypeAdapter
 
 
@@ -19,7 +21,16 @@ class STIXBundle(BaseModel):
 
     type: str = "bundle"
     id: str | None = None
-    objects: tuple[object, ...] = ()
+    objects: tuple[STIXObject, ...] = ()
+
+
+class STIXObject(BaseModel):
+    """A forward-compatible STIX domain or relationship object."""
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    type: str
+    id: str | None = None
 
 
 _CPE_MATCH_ADAPTER = TypeAdapter(CPEMatch)
