@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-07-17
+
+### Added
+
+- Typed WAF rule models matching the live `/api/v3/burp/rules/` response.
+- Regression tests for credential redaction, cookie rejection, retry timing, search-window
+  pagination, sync/async error parity, and disabled rate limiting.
+- Python 3.14 CI coverage, PyPI classifiers, and project metadata links.
+
+### Changed
+
+- Use the canonical GET contract for bulletin history and clamp search pages to the 10,000-record
+  API window.
+- Honor HTTP-date `Retry-After` values and add async archive overload narrowing.
+
+### Security
+
+- Prevent legacy authenticated GET calls from placing API keys in query strings and HTTP logs.
+- Reject and clear HTTP cookies so API responses cannot create replayed client state.
+
 ## [1.0.0] - 2026-07-17
 
 ### Added
@@ -37,3 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Deprecated VScanner and legacy top-level compatibility aliases are intentionally not included.
+
+[1.0.1]: https://github.com/kidoz/vulners-py/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/kidoz/vulners-py/compare/v0.1.0...v1.0.0
+[0.1.0]: https://github.com/kidoz/vulners-py/releases/tag/v0.1.0

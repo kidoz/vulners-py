@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-orange.svg)](CHANGELOG.md)
+[![PyPI](https://img.shields.io/pypi/v/vulners-py.svg)](https://pypi.org/project/vulners-py/)
 
 A modern, strictly typed Python SDK for the [Vulners API](https://docs.vulners.com/docs/api/).
 It provides matching synchronous and asynchronous clients, immutable Pydantic v2 models, resilient
@@ -58,8 +58,9 @@ source .env
 set +a
 ```
 
-The key can also be passed explicitly as `Vulners(api_key="...")`. Client representations never
-contain the key.
+The key can also be passed explicitly as `Vulners(api_key="...")`. The transport authenticates
+with `X-Api-Key`, never places the key in a URL, and discards HTTP cookies. Client and transport
+representations never contain the key.
 
 Before wiring the SDK into your app, confirm the key in your `.env` is accepted with the bundled
 preflight (one cheap, read-only call; exits `0` on success, `2` when no key is set):
@@ -207,6 +208,9 @@ except VulnersAPIError as error:
 No deprecated top-level aliases or `DeprecationWarning` shims are included.
 
 ## Development
+
+Development requires [uv](https://docs.astral.sh/uv/) and
+[just](https://github.com/casey/just). Then install all optional and development dependencies:
 
 ```bash
 uv sync --all-extras
