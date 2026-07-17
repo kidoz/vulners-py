@@ -167,14 +167,18 @@ async def test_async_transport_error_is_wrapped() -> None:
 def test_retry_and_rate_headers_handle_invalid_values() -> None:
     request = httpx.Request("GET", BASE_URL)
     invalid_retry = httpx.Response(429, headers={"Retry-After": "later"}, request=request)
-    fallback_rate = httpx.Response(
-        200, headers={"X-Vulners-Ratelimit-Rate": "120"}, request=request
+    # Upstream advertises only X-Vulners-Ratelimit-Reqlimit (requests-per-minute);
+    # the legacy X-Vulners-Ratelimit-Rate header is intentionally not honored.
+    ignored_rate = httpx.Response(200, headers={"X-Vulners-Ratelimit-Rate": "120"}, request=request)
+    valid_rate = httpx.Response(
+        200, headers={"X-Vulners-Ratelimit-Reqlimit": "120"}, request=request
     )
     invalid_rate = httpx.Response(
         200, headers={"X-Vulners-Ratelimit-Reqlimit": "many"}, request=request
     )
     assert _parse_retry_after(invalid_retry) is None
-    assert _rate_limit_from(fallback_rate) == 120.0
+    assert _rate_limit_from(ignored_rate) is None
+    assert _rate_limit_from(valid_rate) == 120.0
     assert _rate_limit_from(invalid_rate) is None
     assert _retry_delay(1) >= 0.25
 
@@ -217,3 +221,146 @@ async def test_async_stream_download_retries(
         destination = await client.archive.getsploit("CVE-1", tmp_path / "archive.zip")
     assert destination.read_bytes() == b"archive"
     assert route.call_count == 2
+
+
+# request_bytes / download failure paths: retry exhaustion, transport errors,
+# body-level errors inside a 200, and Set-Cookie hygiene on non-JSON paths.
+COLLECTION_V4_URL = f"{BASE_URL}/api/v4/archive/collection"
+GETSPLOIT_URL = f"{BASE_URL}/api/v3/archive/getsploit/"
+
+
+@respx.mock
+def test_request_bytes_retry_exhaustion_raises_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    route = respx.get(COLLECTION_V4_URL).mock(
+        return_value=httpx.Response(503, json={"message": "Unavailable"})
+    )
+    monkeypatch.setattr("vulners._transport.time.sleep", lambda _: None)
+    with (
+        Vulners("key", base_url=BASE_URL, retries=2) as client,
+        pytest.raises(ServerError),
+    ):
+        client.archive.collection_v4("exploitdb")
+    assert route.call_count == 2
+
+
+@respx.mock
+async def test_async_request_bytes_retry_exhaustion_raises_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    route = respx.get(COLLECTION_V4_URL).mock(
+        return_value=httpx.Response(503, json={"message": "Unavailable"})
+    )
+
+    async def no_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr("vulners._transport.asyncio.sleep", no_sleep)
+    async with AsyncVulners("key", base_url=BASE_URL, retries=2) as client:
+        with pytest.raises(ServerError):
+            await client.archive.collection_v4("exploitdb")
+    assert route.call_count == 2
+
+
+@respx.mock
+def test_request_bytes_transport_error_is_wrapped() -> None:
+    def fail(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    transport = httpx.MockTransport(fail)
+    raw = httpx.Client(base_url=BASE_URL, transport=transport)
+    try:
+        client = Vulners("key", base_url=BASE_URL, retries=1, http_client=raw)
+        with pytest.raises(VulnersError, match="Unable to reach"):
+            client.archive.collection_v4("exploitdb")
+        client.close()
+    finally:
+        raw.close()
+
+
+@respx.mock
+async def test_async_request_bytes_transport_error_is_wrapped() -> None:
+    async def fail(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    raw = httpx.AsyncClient(base_url=BASE_URL, transport=httpx.MockTransport(fail))
+    try:
+        client = AsyncVulners("key", base_url=BASE_URL, retries=1, http_client=raw)
+        with pytest.raises(VulnersError, match="Unable to reach"):
+            await client.archive.collection_v4("exploitdb")
+        await client.aclose()
+    finally:
+        await raw.aclose()
+
+
+@respx.mock
+def test_request_bytes_strips_set_cookie() -> None:
+    # The bytes path now runs through the shared _run loop, which pops Set-Cookie.
+    # Assert directly: a custom transport returns the live response, and after the
+    # call the cookie header is gone from it.
+    seen: list[httpx.Response] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        response = httpx.Response(
+            200, content=b"[]", headers={"Set-Cookie": "session=secret"}, request=request
+        )
+        seen.append(response)
+        return response
+
+    transport = httpx.MockTransport(handler)
+    raw = httpx.Client(base_url=BASE_URL, transport=transport)
+    try:
+        client = Vulners("key", base_url=BASE_URL, retries=1, http_client=raw)
+        assert client.archive.collection_v4("exploitdb") == ()
+        client.close()
+    finally:
+        raw.close()
+    assert seen, "mock transport was never called"
+    assert "set-cookie" not in seen[0].headers
+
+
+@respx.mock
+def test_download_transport_error_is_wrapped(tmp_path: Path) -> None:
+    def fail(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    transport = httpx.MockTransport(fail)
+    raw = httpx.Client(base_url=BASE_URL, transport=transport)
+    try:
+        client = Vulners("key", base_url=BASE_URL, retries=1, http_client=raw)
+        with pytest.raises(VulnersError, match="Unable to reach"):
+            client.archive.getsploit("CVE-1", tmp_path / "out.zip")
+        client.close()
+    finally:
+        raw.close()
+
+
+@respx.mock
+async def test_async_download_transport_error_is_wrapped(tmp_path: Path) -> None:
+    async def fail(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    raw = httpx.AsyncClient(base_url=BASE_URL, transport=httpx.MockTransport(fail))
+    try:
+        client = AsyncVulners("key", base_url=BASE_URL, retries=1, http_client=raw)
+        with pytest.raises(VulnersError, match="Unable to reach"):
+            await client.archive.getsploit("CVE-1", tmp_path / "out.zip")
+        await client.aclose()
+    finally:
+        await raw.aclose()
+
+
+@respx.mock
+def test_rate_limit_header_updates_bucket() -> None:
+    # The X-Vulners-Ratelimit-Reqlimit header carries requests-per-minute.
+    # TokenBucket.update converts it to a per-second rate, so 120 rpm -> 2.0 rps.
+    respx.post(LUCENE_URL).mock(
+        return_value=httpx.Response(
+            200, json=SUCCESS, headers={"X-Vulners-Ratelimit-Reqlimit": "120"}
+        )
+    )
+    with Vulners("key", base_url=BASE_URL, rate_limit=True) as client:
+        client.search.bulletins("test")
+        bucket = client._transport._buckets["/api/v3/search/lucene/"]
+    assert bucket._rate == 2.0
