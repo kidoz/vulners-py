@@ -136,7 +136,22 @@ class AuditResource:
         config: Sequence[str] | None = None,
         catalog: AuditCatalog = "official",
     ) -> tuple[AuditMatch, ...]:
-        """Audit software through ``POST /api/v4/audit/software/``."""
+        """Audit software through ``POST /api/v4/audit/software/``.
+
+        Args:
+            software: Software inventory to audit.
+            match: Matching strictness.
+            fields: Response fields to request.
+            config: Optional matching configuration.
+            catalog: Vulnerability catalog to search.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _audit_payload(
             software, match=match, fields=fields, config=config, catalog=catalog
         )
@@ -156,7 +171,25 @@ class AuditResource:
         config: Sequence[str] | None = None,
         catalog: AuditCatalog = "official",
     ) -> tuple[AuditMatch, ...]:
-        """Audit a host through ``POST /api/v4/audit/host/``."""
+        """Audit a host through ``POST /api/v4/audit/host/``.
+
+        Args:
+            software: Software inventory to audit.
+            application: Optional application identity or metadata.
+            operating_system: Optional operating-system identity.
+            hardware: Optional hardware identity.
+            match: Matching strictness.
+            fields: Response fields to request.
+            config: Optional matching configuration.
+            catalog: Vulnerability catalog to search.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         if application is None and operating_system is None and hardware is None:
             msg = "host requires application, operating_system, or hardware"
             raise ValueError(msg)
@@ -175,12 +208,34 @@ class AuditResource:
         )
 
     def cve(self, id: str) -> CVEAuditResult:
-        """Audit one CVE through ``POST /api/v4/audit/cve``."""
+        """Audit one CVE through ``POST /api/v4/audit/cve``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("POST", _CVE_PATH, json={"cve": id})
         return _CVE_RESULT_ADAPTER.validate_python(_result(data))
 
     def cves(self, ids: Sequence[str]) -> tuple[CVEAuditResult, ...]:
-        """Audit CVEs through ``POST /api/v4/audit/cves``."""
+        """Audit CVEs through ``POST /api/v4/audit/cves``.
+
+        Args:
+            ids: Identifiers to process.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         if not ids:
             msg = "ids must not be empty"
             raise ValueError(msg)
@@ -193,12 +248,36 @@ class AuditResource:
         """Audit raw software strings through ``POST /api/v4/audit/smart``.
 
         This preview endpoint is billed per submitted string.
+
+        Args:
+            software: Software inventory to audit.
+            catalog: Vulnerability catalog to search.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         data = self._transport.request("POST", _SMART_PATH, json=_smart_payload(software, catalog))
         return _SMART_AUDIT_RESULTS_ADAPTER.validate_python(_result(data))
 
     def os_packages(self, os: str, version: str, packages: Sequence[str]) -> LegacyAuditResult:
-        """Audit OS packages through the classic v3 audit endpoint."""
+        """Audit OS packages through POST /api/v3/audit/audit/.
+
+        Args:
+            os: Operating-system name.
+            version: Operating-system version.
+            packages: Package inventory to audit.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         if not packages:
             msg = "packages must not be empty"
             raise ValueError(msg)
@@ -221,7 +300,25 @@ class AuditResource:
         include_any_version: bool = False,
         cvelist_metrics: bool = False,
     ) -> PackageAuditResult:
-        """Audit Linux packages through ``POST /api/v4/audit/linux``."""
+        """Audit Linux packages through ``POST /api/v4/audit/linux``.
+
+        Args:
+            os_name: Linux distribution name.
+            os_version: Operating-system version.
+            packages: Package inventory to audit.
+            os_arch: Optional operating-system architecture.
+            include_unofficial: Whether unofficial advisories are included.
+            include_candidates: Whether candidate matches are included.
+            include_any_version: Whether versionless matches are included.
+            cvelist_metrics: Whether CVE-list metrics are included.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _package_options(
             packages,
             include_unofficial,
@@ -244,7 +341,22 @@ class AuditResource:
         include_any_version: bool = False,
         cvelist_metrics: bool = False,
     ) -> PackageAuditResult:
-        """Audit package URLs through ``POST /api/v4/audit/library``."""
+        """Audit package URLs through ``POST /api/v4/audit/library``.
+
+        Args:
+            packages: Package inventory to audit.
+            include_unofficial: Whether unofficial advisories are included.
+            include_candidates: Whether candidate matches are included.
+            include_any_version: Whether versionless matches are included.
+            cvelist_metrics: Whether CVE-list metrics are included.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _package_options(
             packages,
             include_unofficial,
@@ -256,7 +368,18 @@ class AuditResource:
         return _PACKAGE_AUDIT_RESULT_ADAPTER.validate_python(_result(data))
 
     def sbom(self, file: Path) -> SBOMAuditResult:
-        """Audit an SPDX or CycloneDX JSON file through ``POST /api/v4/audit/sbom``."""
+        """Audit an SPDX or CycloneDX JSON file through ``POST /api/v4/audit/sbom``.
+
+        Args:
+            file: SPDX or CycloneDX JSON file.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST",
             _SBOM_PATH,
@@ -265,7 +388,19 @@ class AuditResource:
         return _SBOM_AUDIT_RESULT_ADAPTER.validate_python(_result(data))
 
     def kb(self, os: str, kb_list: Sequence[str]) -> KBAuditResult:
-        """Audit installed Windows KBs through the v3 KB endpoint."""
+        """Audit installed Windows KBs through POST /api/v3/audit/kb/.
+
+        Args:
+            os: Operating-system name.
+            kb_list: Installed Windows KB identifiers.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("POST", _KB_PATH, json={"os": os, "kbList": list(kb_list)})
         return _KB_AUDIT_RESULT_ADAPTER.validate_python(data)
 
@@ -278,7 +413,22 @@ class AuditResource:
         *,
         platform: str | None = None,
     ) -> LegacyAuditResult:
-        """Audit a Windows host through the legacy v3 Windows endpoint."""
+        """Audit a Windows host through POST /api/v3/audit/winaudit/.
+
+        Args:
+            os: Operating-system name.
+            os_version: Operating-system version.
+            kb_list: Installed Windows KB identifiers.
+            software: Software inventory to audit.
+            platform: Optional Windows platform architecture.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload: dict[str, object] = {
             "os": os,
             "os_version": os_version,
@@ -306,7 +456,22 @@ class AsyncAuditResource:
         config: Sequence[str] | None = None,
         catalog: AuditCatalog = "official",
     ) -> tuple[AuditMatch, ...]:
-        """Audit software through ``POST /api/v4/audit/software/``."""
+        """Audit software through ``POST /api/v4/audit/software/``.
+
+        Args:
+            software: Software inventory to audit.
+            match: Matching strictness.
+            fields: Response fields to request.
+            config: Optional matching configuration.
+            catalog: Vulnerability catalog to search.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _audit_payload(
             software, match=match, fields=fields, config=config, catalog=catalog
         )
@@ -325,7 +490,25 @@ class AsyncAuditResource:
         config: Sequence[str] | None = None,
         catalog: AuditCatalog = "official",
     ) -> tuple[AuditMatch, ...]:
-        """Audit a host through ``POST /api/v4/audit/host/``."""
+        """Audit a host through ``POST /api/v4/audit/host/``.
+
+        Args:
+            software: Software inventory to audit.
+            application: Optional application identity or metadata.
+            operating_system: Optional operating-system identity.
+            hardware: Optional hardware identity.
+            match: Matching strictness.
+            fields: Response fields to request.
+            config: Optional matching configuration.
+            catalog: Vulnerability catalog to search.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         if application is None and operating_system is None and hardware is None:
             msg = "host requires application, operating_system, or hardware"
             raise ValueError(msg)
@@ -343,12 +526,34 @@ class AsyncAuditResource:
         return _AUDIT_MATCHES_ADAPTER.validate_python(_result(data))
 
     async def cve(self, id: str) -> CVEAuditResult:
-        """Audit one CVE through ``POST /api/v4/audit/cve``."""
+        """Audit one CVE through ``POST /api/v4/audit/cve``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request("POST", _CVE_PATH, json={"cve": id})
         return _CVE_RESULT_ADAPTER.validate_python(_result(data))
 
     async def cves(self, ids: Sequence[str]) -> tuple[CVEAuditResult, ...]:
-        """Audit CVEs through ``POST /api/v4/audit/cves``."""
+        """Audit CVEs through ``POST /api/v4/audit/cves``.
+
+        Args:
+            ids: Identifiers to process.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         if not ids:
             msg = "ids must not be empty"
             raise ValueError(msg)
@@ -361,6 +566,17 @@ class AsyncAuditResource:
         """Audit raw software strings through ``POST /api/v4/audit/smart``.
 
         This preview endpoint is billed per submitted string.
+
+        Args:
+            software: Software inventory to audit.
+            catalog: Vulnerability catalog to search.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         data = await self._transport.request(
             "POST", _SMART_PATH, json=_smart_payload(software, catalog)
@@ -370,7 +586,20 @@ class AsyncAuditResource:
     async def os_packages(
         self, os: str, version: str, packages: Sequence[str]
     ) -> LegacyAuditResult:
-        """Audit OS packages through the classic v3 audit endpoint."""
+        """Audit OS packages through POST /api/v3/audit/audit/.
+
+        Args:
+            os: Operating-system name.
+            version: Operating-system version.
+            packages: Package inventory to audit.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         if not packages:
             msg = "packages must not be empty"
             raise ValueError(msg)
@@ -393,7 +622,25 @@ class AsyncAuditResource:
         include_any_version: bool = False,
         cvelist_metrics: bool = False,
     ) -> PackageAuditResult:
-        """Audit Linux packages through ``POST /api/v4/audit/linux``."""
+        """Audit Linux packages through ``POST /api/v4/audit/linux``.
+
+        Args:
+            os_name: Linux distribution name.
+            os_version: Operating-system version.
+            packages: Package inventory to audit.
+            os_arch: Optional operating-system architecture.
+            include_unofficial: Whether unofficial advisories are included.
+            include_candidates: Whether candidate matches are included.
+            include_any_version: Whether versionless matches are included.
+            cvelist_metrics: Whether CVE-list metrics are included.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _package_options(
             packages,
             include_unofficial,
@@ -416,7 +663,22 @@ class AsyncAuditResource:
         include_any_version: bool = False,
         cvelist_metrics: bool = False,
     ) -> PackageAuditResult:
-        """Audit package URLs through ``POST /api/v4/audit/library``."""
+        """Audit package URLs through ``POST /api/v4/audit/library``.
+
+        Args:
+            packages: Package inventory to audit.
+            include_unofficial: Whether unofficial advisories are included.
+            include_candidates: Whether candidate matches are included.
+            include_any_version: Whether versionless matches are included.
+            cvelist_metrics: Whether CVE-list metrics are included.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _package_options(
             packages,
             include_unofficial,
@@ -428,7 +690,18 @@ class AsyncAuditResource:
         return _PACKAGE_AUDIT_RESULT_ADAPTER.validate_python(_result(data))
 
     async def sbom(self, file: Path) -> SBOMAuditResult:
-        """Audit an SPDX or CycloneDX JSON file through ``POST /api/v4/audit/sbom``."""
+        """Audit an SPDX or CycloneDX JSON file through ``POST /api/v4/audit/sbom``.
+
+        Args:
+            file: SPDX or CycloneDX JSON file.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         contents = await asyncio.to_thread(file.read_bytes)
         data = await self._transport.request(
             "POST",
@@ -438,7 +711,19 @@ class AsyncAuditResource:
         return _SBOM_AUDIT_RESULT_ADAPTER.validate_python(_result(data))
 
     async def kb(self, os: str, kb_list: Sequence[str]) -> KBAuditResult:
-        """Audit installed Windows KBs through the v3 KB endpoint."""
+        """Audit installed Windows KBs through POST /api/v3/audit/kb/.
+
+        Args:
+            os: Operating-system name.
+            kb_list: Installed Windows KB identifiers.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request(
             "POST", _KB_PATH, json={"os": os, "kbList": list(kb_list)}
         )
@@ -453,7 +738,22 @@ class AsyncAuditResource:
         *,
         platform: str | None = None,
     ) -> LegacyAuditResult:
-        """Audit a Windows host through the legacy v3 Windows endpoint."""
+        """Audit a Windows host through POST /api/v3/audit/winaudit/.
+
+        Args:
+            os: Operating-system name.
+            os_version: Operating-system version.
+            kb_list: Installed Windows KB identifiers.
+            software: Software inventory to audit.
+            platform: Optional Windows platform architecture.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload: dict[str, object] = {
             "os": os,
             "os_version": os_version,

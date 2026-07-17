@@ -68,7 +68,21 @@ class ReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[VulnsSummaryRow, ...]:
-        """Return vulnerability summaries through ``POST /api/v3/reports/vulnsreport``."""
+        """Return vulnerability summaries through ``POST /api/v3/reports/vulnsreport``.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _PATH, json=_payload("vulnssummary", limit, offset, filter, sort)
         )
@@ -82,7 +96,21 @@ class ReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[VulnsListRow, ...]:
-        """Return vulnerability occurrences through the reports endpoint."""
+        """Return vulnerability occurrences through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _PATH, json=_payload("vulnslist", limit, offset, filter, sort)
         )
@@ -96,7 +124,21 @@ class ReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[IPSummaryRow, ...]:
-        """Return per-host summaries through the reports endpoint."""
+        """Return per-host summaries through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _PATH, json=_payload("ipsummary", limit, offset, filter, sort)
         )
@@ -110,7 +152,21 @@ class ReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[ScanListRow, ...]:
-        """Return scan rows through the reports endpoint."""
+        """Return scan rows through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _PATH, json=_payload("scanlist", limit, offset, filter, sort)
         )
@@ -124,7 +180,21 @@ class ReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[HostVulnsRow, ...]:
-        """Return host vulnerabilities through the reports endpoint."""
+        """Return host vulnerabilities through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _PATH, json=_payload("hostvulns", limit, offset, filter, sort)
         )
@@ -159,7 +229,21 @@ class AsyncReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[VulnsSummaryRow, ...]:
-        """Return vulnerability summaries through the reports endpoint."""
+        """Return summaries through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return _VULNS_SUMMARY_ADAPTER.validate_python(
             await self._request(
                 "vulnssummary", limit=limit, offset=offset, filter=filter, sort=sort
@@ -174,7 +258,21 @@ class AsyncReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[VulnsListRow, ...]:
-        """Return vulnerability occurrences through the reports endpoint."""
+        """Return vulnerability occurrences through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return _VULNS_LIST_ADAPTER.validate_python(
             await self._request("vulnslist", limit=limit, offset=offset, filter=filter, sort=sort)
         )
@@ -187,7 +285,21 @@ class AsyncReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[IPSummaryRow, ...]:
-        """Return per-host summaries through the reports endpoint."""
+        """Return per-host summaries through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return _IP_SUMMARY_ADAPTER.validate_python(
             await self._request("ipsummary", limit=limit, offset=offset, filter=filter, sort=sort)
         )
@@ -200,7 +312,21 @@ class AsyncReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[ScanListRow, ...]:
-        """Return scan rows through the reports endpoint."""
+        """Return scan rows through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return _SCAN_LIST_ADAPTER.validate_python(
             await self._request("scanlist", limit=limit, offset=offset, filter=filter, sort=sort)
         )
@@ -213,7 +339,21 @@ class AsyncReportsResource:
         filter: Mapping[str, object] | None = None,
         sort: str = "",
     ) -> tuple[HostVulnsRow, ...]:
-        """Return host vulnerabilities through the reports endpoint."""
+        """Return host vulnerabilities through POST /api/v3/reports/vulnsreport.
+
+        Args:
+            limit: Maximum number of results to return.
+            offset: Number of matching results to skip.
+            filter: Optional report filter mapping.
+            sort: Server-side sort expression.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return _HOST_VULNS_ADAPTER.validate_python(
             await self._request("hostvulns", limit=limit, offset=offset, filter=filter, sort=sort)
         )

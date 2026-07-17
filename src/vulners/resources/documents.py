@@ -84,14 +84,38 @@ class DocumentsResource:
     def get(
         self, id: str, *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> SearchDocument | None:
-        """Get one bulletin through ``POST /api/v3/search/id/``."""
+        """Get one bulletin through ``POST /api/v3/search/id/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         documents = self.get_many((id,), fields=fields)
         return documents[0] if documents else None
 
     def get_many(
         self, ids: Sequence[str], *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> tuple[SearchDocument, ...]:
-        """Get the found bulletins through ``POST /api/v3/search/id/``."""
+        """Get the found bulletins through ``POST /api/v3/search/id/``.
+
+        Args:
+            ids: Identifiers to process.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _DOCUMENTS_PATH, json=_document_payload(ids, fields, False)
         )
@@ -99,11 +123,33 @@ class DocumentsResource:
         return _documents_in_order(ids, documents)
 
     def references(self, id: str) -> BulletinReferences:
-        """Get references for one bulletin through ``POST /api/v3/search/id/``."""
+        """Get references for one bulletin through ``POST /api/v3/search/id/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return self.references_many((id,))[0]
 
     def references_many(self, ids: Sequence[str]) -> tuple[BulletinReferences, ...]:
-        """Get references for multiple bulletins through ``POST /api/v3/search/id/``."""
+        """Get references for multiple bulletins through ``POST /api/v3/search/id/``.
+
+        Args:
+            ids: Identifiers to process.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _DOCUMENTS_PATH, json=_document_payload(ids, (), True)
         )
@@ -113,13 +159,37 @@ class DocumentsResource:
     def get_with_references(
         self, id: str, *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> BulletinWithReferences:
-        """Get one bulletin and references through ``POST /api/v3/search/id/``."""
+        """Get one bulletin and references through ``POST /api/v3/search/id/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return self.get_many_with_references((id,), fields=fields)[0]
 
     def get_many_with_references(
         self, ids: Sequence[str], *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> tuple[BulletinWithReferences, ...]:
-        """Get bulletins and references through ``POST /api/v3/search/id/``."""
+        """Get bulletins and references through ``POST /api/v3/search/id/``.
+
+        Args:
+            ids: Identifiers to process.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST", _DOCUMENTS_PATH, json=_document_payload(ids, fields, True)
         )
@@ -132,7 +202,18 @@ class DocumentsResource:
         )
 
     def kb_seeds(self, kbid: str) -> KBSeeds:
-        """Get KB supersedence data through ``POST /api/v3/search/id/``."""
+        """Get KB supersedence data through ``POST /api/v3/search/id/``.
+
+        Args:
+            kbid: Microsoft KB identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         document = self.get(kbid, fields=("superseeds", "parentseeds"))
         extra = document.model_extra or {} if document is not None else {}
         return KBSeeds(
@@ -144,7 +225,19 @@ class DocumentsResource:
     def kb_updates(
         self, kbid: str, *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> SearchPage:
-        """Search KB updates through ``POST /api/v3/search/lucene/``."""
+        """Search KB updates through ``POST /api/v3/search/lucene/``.
+
+        Args:
+            kbid: Microsoft KB identifier.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return self._search.bulletins(f"type:msupdate AND kb:({kbid})", limit=1000, fields=fields)
 
 
@@ -158,14 +251,38 @@ class AsyncDocumentsResource:
     async def get(
         self, id: str, *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> SearchDocument | None:
-        """Get one bulletin through ``POST /api/v3/search/id/``."""
+        """Get one bulletin through ``POST /api/v3/search/id/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         documents = await self.get_many((id,), fields=fields)
         return documents[0] if documents else None
 
     async def get_many(
         self, ids: Sequence[str], *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> tuple[SearchDocument, ...]:
-        """Get the found bulletins through ``POST /api/v3/search/id/``."""
+        """Get the found bulletins through ``POST /api/v3/search/id/``.
+
+        Args:
+            ids: Identifiers to process.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request(
             "POST", _DOCUMENTS_PATH, json=_document_payload(ids, fields, False)
         )
@@ -173,11 +290,33 @@ class AsyncDocumentsResource:
         return _documents_in_order(ids, documents)
 
     async def references(self, id: str) -> BulletinReferences:
-        """Get references for one bulletin through ``POST /api/v3/search/id/``."""
+        """Get references for one bulletin through ``POST /api/v3/search/id/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return (await self.references_many((id,)))[0]
 
     async def references_many(self, ids: Sequence[str]) -> tuple[BulletinReferences, ...]:
-        """Get references for multiple bulletins through ``POST /api/v3/search/id/``."""
+        """Get references for multiple bulletins through ``POST /api/v3/search/id/``.
+
+        Args:
+            ids: Identifiers to process.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request(
             "POST", _DOCUMENTS_PATH, json=_document_payload(ids, (), True)
         )
@@ -187,13 +326,37 @@ class AsyncDocumentsResource:
     async def get_with_references(
         self, id: str, *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> BulletinWithReferences:
-        """Get one bulletin and references through ``POST /api/v3/search/id/``."""
+        """Get one bulletin and references through ``POST /api/v3/search/id/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return (await self.get_many_with_references((id,), fields=fields))[0]
 
     async def get_many_with_references(
         self, ids: Sequence[str], *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> tuple[BulletinWithReferences, ...]:
-        """Get bulletins and references through ``POST /api/v3/search/id/``."""
+        """Get bulletins and references through ``POST /api/v3/search/id/``.
+
+        Args:
+            ids: Identifiers to process.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request(
             "POST", _DOCUMENTS_PATH, json=_document_payload(ids, fields, True)
         )
@@ -206,7 +369,18 @@ class AsyncDocumentsResource:
         )
 
     async def kb_seeds(self, kbid: str) -> KBSeeds:
-        """Get KB supersedence data through ``POST /api/v3/search/id/``."""
+        """Get KB supersedence data through ``POST /api/v3/search/id/``.
+
+        Args:
+            kbid: Microsoft KB identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         document = await self.get(kbid, fields=("superseeds", "parentseeds"))
         extra = document.model_extra or {} if document is not None else {}
         return KBSeeds(
@@ -218,7 +392,19 @@ class AsyncDocumentsResource:
     async def kb_updates(
         self, kbid: str, *, fields: Sequence[str] = DEFAULT_DOCUMENT_FIELDS
     ) -> SearchPage:
-        """Search KB updates through ``POST /api/v3/search/lucene/``."""
+        """Search KB updates through ``POST /api/v3/search/lucene/``.
+
+        Args:
+            kbid: Microsoft KB identifier.
+            fields: Response fields to request.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         return await self._search.bulletins(
             f"type:msupdate AND kb:({kbid})", limit=1000, fields=fields
         )

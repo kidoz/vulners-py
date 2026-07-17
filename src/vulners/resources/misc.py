@@ -46,7 +46,19 @@ class MiscResource:
         self._transport = transport
 
     def suggest(self, field_name: str, query: str = "") -> tuple[str, ...]:
-        """Return distinct field suggestions from ``POST /api/v3/search/suggest/``."""
+        """Return distinct field suggestions from ``POST /api/v3/search/suggest/``.
+
+        Args:
+            field_name: Vulners field to suggest values for.
+            query: Lucene query or search text.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request(
             "POST",
             _SUGGEST_PATH,
@@ -55,7 +67,18 @@ class MiscResource:
         return _strings(_mapping(data, "suggest"))
 
     def autocomplete(self, query: str) -> tuple[str, ...]:
-        """Complete a Lucene query through ``POST /api/v3/search/autocomplete/``."""
+        """Complete a Lucene query through ``POST /api/v3/search/autocomplete/``.
+
+        Args:
+            query: Lucene query or search text.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("POST", _AUTOCOMPLETE_PATH, json={"query": query})
         suggestions = _mapping(data, "suggestions")
         if isinstance(suggestions, list):
@@ -69,7 +92,20 @@ class MiscResource:
         raise ValueError(msg)
 
     def cpe(self, product: str, *, vendor: str | None = None, size: int | None = None) -> CPEMatch:
-        """Find CPEs through ``GET /api/v4/search/cpe``."""
+        """Find CPEs through ``GET /api/v4/search/cpe``.
+
+        Args:
+            product: Product name used for CPE matching.
+            vendor: Optional product vendor.
+            size: Optional maximum number of matches.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         params: dict[str, str | int] = {"product": product}
         if vendor is not None:
             params["vendor"] = vendor
@@ -79,7 +115,18 @@ class MiscResource:
         return _CPE_MATCH_ADAPTER.validate_python(_mapping(data, "result"))
 
     def waf_rules(self) -> tuple[str, ...]:
-        """Return legacy WAF rules from ``GET /api/v3/burp/rules/``."""
+        """Return legacy WAF rules from ``GET /api/v3/burp/rules/``.
+
+        Args:
+            None.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("GET", _WAF_PATH)
         if isinstance(data, str):
             return (data,)
@@ -98,7 +145,19 @@ class AsyncMiscResource:
         self._transport = transport
 
     async def suggest(self, field_name: str, query: str = "") -> tuple[str, ...]:
-        """Return distinct field suggestions from ``POST /api/v3/search/suggest/``."""
+        """Return distinct field suggestions from ``POST /api/v3/search/suggest/``.
+
+        Args:
+            field_name: Vulners field to suggest values for.
+            query: Lucene query or search text.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request(
             "POST",
             _SUGGEST_PATH,
@@ -107,7 +166,18 @@ class AsyncMiscResource:
         return _strings(_mapping(data, "suggest"))
 
     async def autocomplete(self, query: str) -> tuple[str, ...]:
-        """Complete a Lucene query through ``POST /api/v3/search/autocomplete/``."""
+        """Complete a Lucene query through ``POST /api/v3/search/autocomplete/``.
+
+        Args:
+            query: Lucene query or search text.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request("POST", _AUTOCOMPLETE_PATH, json={"query": query})
         suggestions = _mapping(data, "suggestions")
         if isinstance(suggestions, list):
@@ -123,7 +193,20 @@ class AsyncMiscResource:
     async def cpe(
         self, product: str, *, vendor: str | None = None, size: int | None = None
     ) -> CPEMatch:
-        """Find CPEs through ``GET /api/v4/search/cpe``."""
+        """Find CPEs through ``GET /api/v4/search/cpe``.
+
+        Args:
+            product: Product name used for CPE matching.
+            vendor: Optional product vendor.
+            size: Optional maximum number of matches.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         params: dict[str, str | int] = {"product": product}
         if vendor is not None:
             params["vendor"] = vendor
@@ -133,7 +216,18 @@ class AsyncMiscResource:
         return _CPE_MATCH_ADAPTER.validate_python(_mapping(data, "result"))
 
     async def waf_rules(self) -> tuple[str, ...]:
-        """Return legacy WAF rules from ``GET /api/v3/burp/rules/``."""
+        """Return legacy WAF rules from ``GET /api/v3/burp/rules/``.
+
+        Args:
+            None.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request("GET", _WAF_PATH)
         if isinstance(data, str):
             return (data,)
@@ -152,7 +246,19 @@ class STIXResource:
         self._transport = transport
 
     def bundle(self, id: str, *, opencti_id: str | None = None) -> STIXBundle:
-        """Build a bundle through ``GET /api/v4/stix/bundle``."""
+        """Build a bundle through ``GET /api/v4/stix/bundle``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            opencti_id: Optional OpenCTI object identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         params = {"id": id}
         if opencti_id is not None:
             params["opencti_id"] = opencti_id
@@ -167,7 +273,19 @@ class AsyncSTIXResource:
         self._transport = transport
 
     async def bundle(self, id: str, *, opencti_id: str | None = None) -> STIXBundle:
-        """Build a bundle through ``GET /api/v4/stix/bundle``."""
+        """Build a bundle through ``GET /api/v4/stix/bundle``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+            opencti_id: Optional OpenCTI object identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         params = {"id": id}
         if opencti_id is not None:
             params["opencti_id"] = opencti_id

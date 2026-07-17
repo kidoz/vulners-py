@@ -185,6 +185,14 @@ class SearchResource:
 
         Yields:
             Typed Vulners documents until the endpoint is exhausted.
+
+
+        Returns:
+            An iterator over typed API results.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         current_offset = offset
         while True:
@@ -215,6 +223,11 @@ class SearchResource:
 
         Returns:
             A typed page of matching exploit documents.
+
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         return self.bulletins(
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
@@ -240,13 +253,32 @@ class SearchResource:
 
         Yields:
             Typed exploit documents until the endpoint is exhausted.
+
+
+        Returns:
+            An iterator over typed API results.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         yield from self.bulletins_iter(
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
         )
 
     def history(self, id: str) -> tuple[HistoryEntry, ...]:
-        """Get bulletin history through ``POST /api/v3/search/history/``."""
+        """Get bulletin history through ``POST /api/v3/search/history/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = self._transport.request("POST", _HISTORY_PATH, json={"id": id})
         return _parse_history(data)
 
@@ -259,7 +291,22 @@ class SearchResource:
         config: Sequence[str] | None = None,
         catalog: WebCatalog = "official",
     ) -> WebVulnerabilityResult:
-        """Search web vulnerabilities through ``POST /api/v4/search/web-vulns/``."""
+        """Search web vulnerabilities through ``POST /api/v4/search/web-vulns/``.
+
+        Args:
+            paths: Web paths or URLs to match.
+            application: Optional application identity or metadata.
+            match: Matching strictness.
+            config: Optional matching configuration.
+            catalog: Vulnerability catalog to search.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _web_vulns_payload(paths, application, match, config, catalog)
         data = self._transport.request("POST", _WEB_VULNS_PATH, json=payload)
         return _parse_web_vulns(data)
@@ -289,6 +336,11 @@ class AsyncSearchResource:
 
         Returns:
             A typed page of matching Vulners documents.
+
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         data = await self._transport.request(
             "POST", _LUCENE_PATH, json=_search_payload(query, limit, offset, fields)
@@ -313,6 +365,14 @@ class AsyncSearchResource:
 
         Yields:
             Typed Vulners documents until the endpoint is exhausted.
+
+
+        Returns:
+            An iterator over typed API results.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         current_offset = offset
         while True:
@@ -344,6 +404,11 @@ class AsyncSearchResource:
 
         Returns:
             A typed page of matching exploit documents.
+
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         return await self.bulletins(
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
@@ -369,6 +434,14 @@ class AsyncSearchResource:
 
         Yields:
             Typed exploit documents until the endpoint is exhausted.
+
+
+        Returns:
+            An iterator over typed API results.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
         """
         async for document in self.bulletins_iter(
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
@@ -376,7 +449,18 @@ class AsyncSearchResource:
             yield document
 
     async def history(self, id: str) -> tuple[HistoryEntry, ...]:
-        """Get bulletin history through ``POST /api/v3/search/history/``."""
+        """Get bulletin history through ``POST /api/v3/search/history/``.
+
+        Args:
+            id: Vulners bulletin or subscription identifier.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         data = await self._transport.request("POST", _HISTORY_PATH, json={"id": id})
         return _parse_history(data)
 
@@ -389,7 +473,22 @@ class AsyncSearchResource:
         config: Sequence[str] | None = None,
         catalog: WebCatalog = "official",
     ) -> WebVulnerabilityResult:
-        """Search web vulnerabilities through ``POST /api/v4/search/web-vulns/``."""
+        """Search web vulnerabilities through ``POST /api/v4/search/web-vulns/``.
+
+        Args:
+            paths: Web paths or URLs to match.
+            application: Optional application identity or metadata.
+            match: Matching strictness.
+            config: Optional matching configuration.
+            catalog: Vulnerability catalog to search.
+
+        Returns:
+            The typed API result.
+
+        Raises:
+            ValueError: If an argument or response fails validation.
+            VulnersError: If the API request fails.
+        """
         payload = _web_vulns_payload(paths, application, match, config, catalog)
         data = await self._transport.request("POST", _WEB_VULNS_PATH, json=payload)
         return _parse_web_vulns(data)
