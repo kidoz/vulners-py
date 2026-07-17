@@ -1,0 +1,65 @@
+name: Publish release to PyPI
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: pypi-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/vulners-py
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
+        with:
+          python-version: "3.14"
+
+      - name: Verify release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          package_version="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/vulners/_version.py)"
+          test -n "${package_version}"
+          test "v${package_version}" = "${RELEASE_TAG}"
+
+      - name: Build distributions
+        run: uv build --clear
+
+      - name: Smoke test wheel
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          package_version="${RELEASE_TAG#v}"
+          uv run --isolated --no-project \
+            --with "./dist/vulners_py-${package_version}-py3-none-any.whl" \
+            python -c 'from importlib.metadata import version; import vulners; assert version("vulners-py") == vulners.__version__'
+
+      - name: Smoke test source distribution
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          package_version="${RELEASE_TAG#v}"
+          uv run --isolated --no-project \
+            --with "./dist/vulners_py-${package_version}.tar.gz" \
+            python -c 'from importlib.metadata import version; import vulners; assert version("vulners-py") == vulners.__version__'
+
+      - name: Publish to PyPI
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          package_version="${RELEASE_TAG#v}"
+          uv publish --trusted-publishing always --check-url https://pypi.org/simple/ \
+            "dist/vulners_py-${package_version}-py3-none-any.whl" \
+            "dist/vulners_py-${package_version}.tar.gz"
