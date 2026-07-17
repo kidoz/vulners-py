@@ -218,8 +218,8 @@ class DocumentsResource:
         extra = document.model_extra or {} if document is not None else {}
         return KBSeeds(
             kbid=kbid,
-            superseeds=_SEEDS_ADAPTER.validate_python(extra.get("superseeds", ())),
-            parentseeds=_SEEDS_ADAPTER.validate_python(extra.get("parentseeds", ())),
+            superseeds=_SEEDS_ADAPTER.validate_python(extra.get("superseeds") or ()),
+            parentseeds=_SEEDS_ADAPTER.validate_python(extra.get("parentseeds") or ()),
         )
 
     def kb_updates(
@@ -385,8 +385,8 @@ class AsyncDocumentsResource:
         extra = document.model_extra or {} if document is not None else {}
         return KBSeeds(
             kbid=kbid,
-            superseeds=_SEEDS_ADAPTER.validate_python(extra.get("superseeds", ())),
-            parentseeds=_SEEDS_ADAPTER.validate_python(extra.get("parentseeds", ())),
+            superseeds=_SEEDS_ADAPTER.validate_python(extra.get("superseeds") or ()),
+            parentseeds=_SEEDS_ADAPTER.validate_python(extra.get("parentseeds") or ()),
         )
 
     async def kb_updates(

@@ -227,6 +227,28 @@ class AsyncArchiveResource:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
 
+    @overload
+    async def collection(
+        self,
+        type: str,
+        *,
+        date_from: str = "1976-01-01",
+        date_to: str = "2199-01-01",
+        raw: Literal[False] = False,
+        destination: None = None,
+    ) -> tuple[ArchiveRecord, ...]: ...
+
+    @overload
+    async def collection(
+        self,
+        type: str,
+        *,
+        date_from: str = "1976-01-01",
+        date_to: str = "2199-01-01",
+        raw: Literal[True],
+        destination: Path,
+    ) -> Path: ...
+
     async def collection(
         self,
         type: str,
@@ -258,6 +280,24 @@ class AsyncArchiveResource:
                 "GET", _COLLECTION_V3, _destination(raw, destination), params=params
             )
         return _records(await self._transport.request_bytes("GET", _COLLECTION_V3, params=params))
+
+    @overload
+    async def collection_v4(
+        self,
+        type: str,
+        *,
+        raw: Literal[False] = False,
+        destination: None = None,
+    ) -> tuple[ArchiveRecord, ...]: ...
+
+    @overload
+    async def collection_v4(
+        self,
+        type: str,
+        *,
+        raw: Literal[True],
+        destination: Path,
+    ) -> Path: ...
 
     async def collection_v4(
         self,

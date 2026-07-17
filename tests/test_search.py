@@ -91,6 +91,35 @@ def test_bulletins_iter_paginates_and_stops_at_total() -> None:
 
 
 @respx.mock
+def test_bulletins_iter_stops_at_empty_page() -> None:
+    empty_route = respx.post(LUCENE_URL).mock(
+        return_value=httpx.Response(200, json={"result": "OK", "data": {"search": [], "total": 2}})
+    )
+    with Vulners("key", base_url=BASE_URL) as client:
+        assert list(client.search.bulletins_iter("empty", limit=1)) == []
+    assert empty_route.call_count == 1
+
+
+@respx.mock
+def test_bulletins_iter_stops_at_search_window() -> None:
+    window_route = respx.post(LUCENE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "OK",
+                "data": {"search": [{"_source": {"id": "LAST"}}], "total": 10_002},
+            },
+        )
+    )
+    with Vulners("key", base_url=BASE_URL) as client:
+        documents = list(client.search.bulletins_iter("large", limit=20, offset=9_999))
+
+    assert [document.id for document in documents] == ["LAST"]
+    assert window_route.call_count == 1
+    assert json.loads(window_route.calls[0].request.content)["size"] == 1
+
+
+@respx.mock
 async def test_async_bulletins_iter_paginates() -> None:
     first_page = {"result": "OK", "data": {"search": [{"_source": {"id": "A"}}], "total": 2}}
     second_page = {"result": "OK", "data": {"search": [{"_source": {"id": "B"}}], "total": 2}}
@@ -123,7 +152,7 @@ def test_search_models_are_frozen() -> None:
 
 @respx.mock
 def test_history_returns_typed_entries() -> None:
-    route = respx.post(HISTORY_URL).mock(
+    route = respx.get(HISTORY_URL).mock(
         return_value=httpx.Response(
             200,
             json={
@@ -138,7 +167,18 @@ def test_history_returns_typed_entries() -> None:
         entries = client.search.history("CVE-2024-0001")
 
     assert entries[0].field == "cvss3"
-    assert json.loads(route.calls[0].request.content) == {"id": "CVE-2024-0001"}
+    assert route.calls[0].request.url.params["id"] == "CVE-2024-0001"
+    assert not route.calls[0].request.content
+
+
+@respx.mock
+async def test_async_history_matches_get_contract() -> None:
+    route = respx.get(HISTORY_URL).mock(
+        return_value=httpx.Response(200, json={"result": "OK", "data": {"result": []}})
+    )
+    async with AsyncVulners("key", base_url=BASE_URL) as client:
+        assert await client.search.history("CVE-2024-0001") == ()
+    assert route.calls[0].request.url.params["id"] == "CVE-2024-0001"
 
 
 @respx.mock
@@ -170,6 +210,8 @@ def test_search_input_validation() -> None:
             client.search.bulletins("test", limit=0)
         with pytest.raises(ValueError, match="offset"):
             client.search.bulletins("test", offset=-1)
+        with pytest.raises(ValueError, match="offset"):
+            client.search.bulletins("test", offset=10_000)
         with pytest.raises(ValueError, match="paths"):
             client.search.web_vulns(())
 

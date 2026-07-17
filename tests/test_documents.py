@@ -104,6 +104,32 @@ async def test_async_document_helpers() -> None:
         assert (await client.documents.kb_updates("KB123")).total == 0
 
 
+@respx.mock
+def test_kb_seeds_accepts_json_null_relationships() -> None:
+    respx.post(DOCUMENTS_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "OK",
+                "data": {
+                    "documents": {
+                        "KB123": {
+                            "id": "KB123",
+                            "superseeds": None,
+                            "parentseeds": None,
+                        }
+                    },
+                    "references": {},
+                },
+            },
+        )
+    )
+    with Vulners("key", base_url=BASE_URL) as client:
+        seeds = client.documents.kb_seeds("KB123")
+    assert seeds.superseeds == ()
+    assert seeds.parentseeds == ()
+
+
 def test_document_input_and_response_validation() -> None:
     with Vulners("key", base_url=BASE_URL) as client, pytest.raises(ValueError, match="ids"):
         client.documents.get_many(())

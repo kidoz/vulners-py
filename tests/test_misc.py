@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 import respx
+from pydantic import ValidationError
 
 from vulners import AsyncVulners, Vulners
 from vulners.resources.misc import _mapping, _strings
@@ -25,7 +28,17 @@ def _routes() -> None:
         )
     )
     respx.get(f"{BASE_URL}/api/v3/burp/rules/").mock(
-        return_value=httpx.Response(200, json={"result": "OK", "data": {"rules": ["rule"]}})
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "OK",
+                "data": {
+                    "rules": {
+                        "WordPress": {"alias": "wordpress", "regex": "wp-content", "type": "cms"}
+                    }
+                },
+            },
+        )
     )
     respx.get(f"{BASE_URL}/api/v4/stix/bundle").mock(
         return_value=httpx.Response(
@@ -48,10 +61,14 @@ def test_misc_and_stix_sync() -> None:
         assert client.misc.suggest("type", "cv") == ("cve",)
         assert client.misc.autocomplete("cv") == ("type:cve", "cvss")
         assert client.misc.cpe("curl", vendor="haxx", size=5).best_match == "cpe:example"
-        assert client.misc.waf_rules() == ("rule",)
+        assert client.misc.waf_rules().rules["WordPress"].alias == "wordpress"
         bundle = client.stix.bundle("CVE-2024-0001", opencti_id="x")
         assert bundle.id == "bundle--1"
-        assert bundle.objects[0].type == "vulnerability"
+    assert bundle.objects[0].type == "vulnerability"
+    suggest_call = next(
+        call for call in respx.calls if call.request.url.path == "/api/v3/search/suggest/"
+    )
+    assert json.loads(suggest_call.request.content) == {"fieldName": "type", "type": "distinct"}
 
 
 @respx.mock
@@ -61,7 +78,7 @@ async def test_misc_and_stix_async() -> None:
         assert await client.misc.suggest("type") == ("cve",)
         assert await client.misc.autocomplete("cv") == ("type:cve", "cvss")
         assert (await client.misc.cpe("curl")).cpe == ("cpe:other",)
-        assert await client.misc.waf_rules() == ("rule",)
+        assert (await client.misc.waf_rules()).rules["WordPress"].regex == "wp-content"
         assert (await client.stix.bundle("CVE-2024-0001")).type == "bundle"
 
 
@@ -77,18 +94,17 @@ def test_misc_response_variants_and_validation() -> None:
             200, json={"result": "OK", "data": {"suggestions": {"invalid": True}}}
         )
     )
-    waf = respx.get(f"{BASE_URL}/api/v3/burp/rules/").mock(
+    respx.get(f"{BASE_URL}/api/v3/burp/rules/").mock(
         return_value=httpx.Response(200, json={"result": "OK", "data": "raw-rule"})
     )
     with Vulners("key", base_url=BASE_URL) as client:
         with pytest.raises(ValueError, match="autocomplete"):
             client.misc.autocomplete("bad")
-        assert client.misc.waf_rules() == ("raw-rule",)
+        with pytest.raises(ValidationError):
+            client.misc.waf_rules()
 
     autocomplete.mock(
         return_value=httpx.Response(200, json={"result": "OK", "data": {"suggestions": []}})
     )
-    waf.mock(return_value=httpx.Response(200, json={"result": "OK", "data": ["one", 2]}))
     with Vulners("key", base_url=BASE_URL) as client:
         assert client.misc.autocomplete("empty") == ()
-        assert client.misc.waf_rules() == ("one",)

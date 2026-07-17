@@ -4,7 +4,14 @@ This module is checked by mypy and deliberately is not collected by pytest.
 """
 
 from vulners import AsyncVulners, Vulners, __version__
-from vulners.types import LuceneSubscriptionQuery, PollingSubscriptionDelivery
+from vulners.types import (
+    ArchiveRecord,
+    LuceneSubscriptionQuery,
+    PollingSubscriptionDelivery,
+    WAFRules,
+)
+
+version: str = __version__
 
 
 def check_sync_client(client: Vulners) -> None:
@@ -14,13 +21,18 @@ def check_sync_client(client: Vulners) -> None:
     client.search.bulletins("type:cve")
     client.documents.get("CVE-2024-0001")
     client.audit.cve("CVE-2024-0001")
+    records: tuple[ArchiveRecord, ...] = client.archive.collection("cve")
+    assert isinstance(records, tuple)
+    current_records: tuple[ArchiveRecord, ...] = client.archive.collection_v4("cve")
+    assert isinstance(current_records, tuple)
     client.archive.collection_update("cve", "2026-01-01T00:00:00")
     client.reports.vulns_summary()
     client.subscriptions.create("CVEs", query, delivery)
     client.webhooks.enable("subscription-id", True)
     client.stix.bundle("CVE-2024-0001")
     client.misc.cpe("curl")
-    assert __version__ == "1.0.0"
+    waf_rules: WAFRules = client.misc.waf_rules()
+    assert isinstance(waf_rules, WAFRules)
 
 
 async def check_async_client(client: AsyncVulners) -> None:
@@ -30,9 +42,15 @@ async def check_async_client(client: AsyncVulners) -> None:
     await client.search.bulletins("type:cve")
     await client.documents.get("CVE-2024-0001")
     await client.audit.cve("CVE-2024-0001")
+    records: tuple[ArchiveRecord, ...] = await client.archive.collection("cve")
+    assert isinstance(records, tuple)
+    current_records: tuple[ArchiveRecord, ...] = await client.archive.collection_v4("cve")
+    assert isinstance(current_records, tuple)
     await client.archive.collection_update("cve", "2026-01-01T00:00:00")
     await client.reports.vulns_summary()
     await client.subscriptions.create("CVEs", query, delivery)
     await client.webhooks.enable("subscription-id", False)
     await client.stix.bundle("CVE-2024-0001")
     await client.misc.cpe("curl")
+    waf_rules: WAFRules = await client.misc.waf_rules()
+    assert isinstance(waf_rules, WAFRules)

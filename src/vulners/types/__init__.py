@@ -18,7 +18,7 @@ from .audit import (
     WindowsSoftware,
 )
 from .documents import BulletinReferences, BulletinWithReferences, KBSeeds
-from .misc import CPEMatch, STIXBundle, STIXObject
+from .misc import CPEMatch, STIXBundle, STIXObject, WAFRule, WAFRules
 from .reports import HostVulnsRow, IPSummaryRow, ScanListRow, VulnsListRow, VulnsSummaryRow
 from .search import (
     HistoryEntry,
@@ -87,6 +87,8 @@ __all__ = [
     "SubscriptionQuery",
     "VulnsListRow",
     "VulnsSummaryRow",
+    "WAFRule",
+    "WAFRules",
     "WebVulnerability",
     "WebVulnerabilityResult",
     "WebhookSubscriptionDelivery",

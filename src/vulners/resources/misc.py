@@ -6,7 +6,14 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Final
 
 from .._serde import json_loads
-from ..types.misc import _CPE_MATCH_ADAPTER, _STIX_BUNDLE_ADAPTER, CPEMatch, STIXBundle
+from ..types.misc import (
+    _CPE_MATCH_ADAPTER,
+    _STIX_BUNDLE_ADAPTER,
+    _WAF_RULES_ADAPTER,
+    CPEMatch,
+    STIXBundle,
+    WAFRules,
+)
 
 if TYPE_CHECKING:
     from .._transport import AsyncTransport, ResponseData, SyncTransport
@@ -50,7 +57,7 @@ class MiscResource:
 
         Args:
             field_name: Vulners field to suggest values for.
-            query: Lucene query or search text.
+            query: Reserved compatibility value; this endpoint only accepts ``fieldName``.
 
         Returns:
             The typed API result.
@@ -62,7 +69,7 @@ class MiscResource:
         data = self._transport.request(
             "POST",
             _SUGGEST_PATH,
-            json={"fieldName": field_name, "type": "distinct", "query": query},
+            json={"fieldName": field_name, "type": "distinct"},
         )
         return _strings(_mapping(data, "suggest"))
 
@@ -114,7 +121,7 @@ class MiscResource:
         data = self._transport.request("GET", _CPE_PATH, params=params)
         return _CPE_MATCH_ADAPTER.validate_python(_mapping(data, "result"))
 
-    def waf_rules(self) -> tuple[str, ...]:
+    def waf_rules(self) -> WAFRules:
         """Return legacy WAF rules from ``GET /api/v3/burp/rules/``.
 
         Args:
@@ -128,14 +135,7 @@ class MiscResource:
             VulnersError: If the API request fails.
         """
         data = self._transport.request("GET", _WAF_PATH)
-        if isinstance(data, str):
-            return (data,)
-        if isinstance(data, list):
-            return tuple(item for item in data if isinstance(item, str))
-        if isinstance(data, Mapping):
-            rules = data.get("rules", ())
-            return _strings(rules) if isinstance(rules, list) else ()
-        return ()
+        return _WAF_RULES_ADAPTER.validate_python(data)
 
 
 class AsyncMiscResource:
@@ -149,7 +149,7 @@ class AsyncMiscResource:
 
         Args:
             field_name: Vulners field to suggest values for.
-            query: Lucene query or search text.
+            query: Reserved compatibility value; this endpoint only accepts ``fieldName``.
 
         Returns:
             The typed API result.
@@ -161,7 +161,7 @@ class AsyncMiscResource:
         data = await self._transport.request(
             "POST",
             _SUGGEST_PATH,
-            json={"fieldName": field_name, "type": "distinct", "query": query},
+            json={"fieldName": field_name, "type": "distinct"},
         )
         return _strings(_mapping(data, "suggest"))
 
@@ -215,7 +215,7 @@ class AsyncMiscResource:
         data = await self._transport.request("GET", _CPE_PATH, params=params)
         return _CPE_MATCH_ADAPTER.validate_python(_mapping(data, "result"))
 
-    async def waf_rules(self) -> tuple[str, ...]:
+    async def waf_rules(self) -> WAFRules:
         """Return legacy WAF rules from ``GET /api/v3/burp/rules/``.
 
         Args:
@@ -229,14 +229,7 @@ class AsyncMiscResource:
             VulnersError: If the API request fails.
         """
         data = await self._transport.request("GET", _WAF_PATH)
-        if isinstance(data, str):
-            return (data,)
-        if isinstance(data, list):
-            return tuple(item for item in data if isinstance(item, str))
-        if isinstance(data, Mapping):
-            rules = data.get("rules", ())
-            return _strings(rules) if isinstance(rules, list) else ()
-        return ()
+        return _WAF_RULES_ADAPTER.validate_python(data)
 
 
 class STIXResource:

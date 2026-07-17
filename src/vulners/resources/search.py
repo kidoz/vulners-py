@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 _LUCENE_PATH: Final = "/api/v3/search/lucene/"
 _HISTORY_PATH: Final = "/api/v3/search/history/"
 _WEB_VULNS_PATH: Final = "/api/v4/search/web-vulns/"
+_MAX_SEARCH_WINDOW: Final = 10_000
 DEFAULT_SEARCH_FIELDS: Final = (
     "id",
     "title",
@@ -48,13 +49,14 @@ _CVE_PATTERN: Final = re.compile(r"^CVE-\d{4}-\d+$", re.IGNORECASE)
 def _search_payload(
     query: str, limit: int, offset: int, fields: Sequence[str]
 ) -> dict[str, object]:
-    if limit <= 0 or limit > 10_000:
+    if limit <= 0 or limit > _MAX_SEARCH_WINDOW:
         msg = "limit must be between 1 and 10000"
         raise ValueError(msg)
-    if offset < 0 or offset > 10_000:
-        msg = "offset must be between 0 and 10000"
+    if offset < 0 or offset >= _MAX_SEARCH_WINDOW:
+        msg = "offset must be between 0 and 9999"
         raise ValueError(msg)
-    return {"query": query, "size": limit, "skip": offset, "fields": list(fields)}
+    size = min(limit, _MAX_SEARCH_WINDOW - offset)
+    return {"query": query, "size": size, "skip": offset, "fields": list(fields)}
 
 
 def _parse_search_page(data: ResponseData) -> SearchPage:
@@ -199,7 +201,8 @@ class SearchResource:
             page = self.bulletins(query, limit=limit, offset=current_offset, fields=fields)
             yield from page.documents
             fetched = len(page.documents)
-            if fetched == 0 or current_offset + fetched >= page.total:
+            window_end = min(page.total, _MAX_SEARCH_WINDOW)
+            if fetched == 0 or current_offset + fetched >= window_end:
                 return
             current_offset += fetched
 
@@ -267,7 +270,7 @@ class SearchResource:
         )
 
     def history(self, id: str) -> tuple[HistoryEntry, ...]:
-        """Get bulletin history through ``POST /api/v3/search/history/``.
+        """Get bulletin history through ``GET /api/v3/search/history/``.
 
         Args:
             id: Vulners bulletin or subscription identifier.
@@ -279,7 +282,7 @@ class SearchResource:
             ValueError: If an argument or response fails validation.
             VulnersError: If the API request fails.
         """
-        data = self._transport.request("POST", _HISTORY_PATH, json={"id": id})
+        data = self._transport.request("GET", _HISTORY_PATH, params={"id": id})
         return _parse_history(data)
 
     def web_vulns(
@@ -380,7 +383,8 @@ class AsyncSearchResource:
             for document in page.documents:
                 yield document
             fetched = len(page.documents)
-            if fetched == 0 or current_offset + fetched >= page.total:
+            window_end = min(page.total, _MAX_SEARCH_WINDOW)
+            if fetched == 0 or current_offset + fetched >= window_end:
                 return
             current_offset += fetched
 
@@ -449,7 +453,7 @@ class AsyncSearchResource:
             yield document
 
     async def history(self, id: str) -> tuple[HistoryEntry, ...]:
-        """Get bulletin history through ``POST /api/v3/search/history/``.
+        """Get bulletin history through ``GET /api/v3/search/history/``.
 
         Args:
             id: Vulners bulletin or subscription identifier.
@@ -461,7 +465,7 @@ class AsyncSearchResource:
             ValueError: If an argument or response fails validation.
             VulnersError: If the API request fails.
         """
-        data = await self._transport.request("POST", _HISTORY_PATH, json={"id": id})
+        data = await self._transport.request("GET", _HISTORY_PATH, params={"id": id})
         return _parse_history(data)
 
     async def web_vulns(

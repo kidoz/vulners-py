@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping  # noqa: TC003 - Required by Pydantic at runtime.
+
 from pydantic import BaseModel, ConfigDict, TypeAdapter
 
 
@@ -12,6 +14,24 @@ class CPEMatch(BaseModel):
 
     best_match: str | None = None
     cpe: tuple[str, ...] = ()
+
+
+class WAFRule(BaseModel):
+    """One software detection rule returned by the legacy Burp endpoint."""
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    alias: str
+    regex: str
+    type: str
+
+
+class WAFRules(BaseModel):
+    """Web-application detection rules keyed by software name."""
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    rules: Mapping[str, WAFRule]
 
 
 class STIXBundle(BaseModel):
@@ -34,4 +54,5 @@ class STIXObject(BaseModel):
 
 
 _CPE_MATCH_ADAPTER = TypeAdapter(CPEMatch)
+_WAF_RULES_ADAPTER = TypeAdapter(WAFRules)
 _STIX_BUNDLE_ADAPTER = TypeAdapter(STIXBundle)
