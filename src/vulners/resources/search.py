@@ -6,12 +6,25 @@ import re
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING, Final, cast
 
-from ..types.search import _DOCUMENTS_ADAPTER, _PAGE_ADAPTER, SearchDocument, SearchPage
+from ..types.search import (
+    _DOCUMENTS_ADAPTER,
+    _HISTORY_ADAPTER,
+    _PAGE_ADAPTER,
+    _WEB_VULNERABILITIES_ADAPTER,
+    HistoryEntry,
+    SearchDocument,
+    SearchPage,
+    WebCatalog,
+    WebMatchMode,
+    WebVulnerabilityResult,
+)
 
 if TYPE_CHECKING:
     from .._transport import AsyncTransport, ResponseData, SyncTransport
 
 _LUCENE_PATH: Final = "/api/v3/search/lucene/"
+_HISTORY_PATH: Final = "/api/v3/search/history/"
+_WEB_VULNS_PATH: Final = "/api/v4/search/web-vulns/"
 DEFAULT_SEARCH_FIELDS: Final = (
     "id",
     "title",
@@ -83,6 +96,42 @@ def _exploit_query(query: str, lookup_fields: Sequence[str] | None) -> str:
         criteria = " OR ".join(f'{field}:"{normalized_query}"' for field in lookup_fields)
         return f"bulletinFamily:exploit AND ({criteria})"
     return f"bulletinFamily:exploit AND ({normalized_query})"
+
+
+def _parse_history(data: ResponseData) -> tuple[HistoryEntry, ...]:
+    if not isinstance(data, Mapping) or not isinstance(data.get("result"), list):
+        msg = "Unexpected response shape for /api/v3/search/history/"
+        raise ValueError(msg)
+    return _HISTORY_ADAPTER.validate_python(data["result"])
+
+
+def _parse_web_vulns(data: ResponseData) -> WebVulnerabilityResult:
+    if not isinstance(data, Mapping) or not isinstance(data.get("result"), Mapping):
+        msg = "Unexpected response shape for /api/v4/search/web-vulns/"
+        raise ValueError(msg)
+    matches = _WEB_VULNERABILITIES_ADAPTER.validate_python(data["result"])
+    return WebVulnerabilityResult(matches=matches)
+
+
+def _web_vulns_payload(
+    paths: Sequence[str],
+    application: str | Mapping[str, object] | None,
+    match: WebMatchMode,
+    config: Sequence[str] | None,
+    catalog: WebCatalog,
+) -> dict[str, object]:
+    if not paths:
+        msg = "paths must not be empty"
+        raise ValueError(msg)
+    payload: dict[str, object] = {
+        "paths": list(paths),
+        "application": application,
+        "match": match,
+        "catalog": catalog,
+    }
+    if config is not None:
+        payload["config"] = list(config)
+    return payload
 
 
 class SearchResource:
@@ -196,6 +245,25 @@ class SearchResource:
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
         )
 
+    def history(self, id: str) -> tuple[HistoryEntry, ...]:
+        """Get bulletin history through ``POST /api/v3/search/history/``."""
+        data = self._transport.request("POST", _HISTORY_PATH, json={"id": id})
+        return _parse_history(data)
+
+    def web_vulns(
+        self,
+        paths: Sequence[str],
+        *,
+        application: str | Mapping[str, object] | None = None,
+        match: WebMatchMode = "partial",
+        config: Sequence[str] | None = None,
+        catalog: WebCatalog = "official",
+    ) -> WebVulnerabilityResult:
+        """Search web vulnerabilities through ``POST /api/v4/search/web-vulns/``."""
+        payload = _web_vulns_payload(paths, application, match, config, catalog)
+        data = self._transport.request("POST", _WEB_VULNS_PATH, json=payload)
+        return _parse_web_vulns(data)
+
 
 class AsyncSearchResource:
     """Asynchronous full-text and exploit search operations."""
@@ -306,3 +374,22 @@ class AsyncSearchResource:
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
         ):
             yield document
+
+    async def history(self, id: str) -> tuple[HistoryEntry, ...]:
+        """Get bulletin history through ``POST /api/v3/search/history/``."""
+        data = await self._transport.request("POST", _HISTORY_PATH, json={"id": id})
+        return _parse_history(data)
+
+    async def web_vulns(
+        self,
+        paths: Sequence[str],
+        *,
+        application: str | Mapping[str, object] | None = None,
+        match: WebMatchMode = "partial",
+        config: Sequence[str] | None = None,
+        catalog: WebCatalog = "official",
+    ) -> WebVulnerabilityResult:
+        """Search web vulnerabilities through ``POST /api/v4/search/web-vulns/``."""
+        payload = _web_vulns_payload(paths, application, match, config, catalog)
+        data = await self._transport.request("POST", _WEB_VULNS_PATH, json=payload)
+        return _parse_web_vulns(data)

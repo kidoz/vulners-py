@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import httpx
 import pytest
@@ -10,10 +10,16 @@ import respx
 from pydantic import ValidationError
 
 from vulners import AsyncVulners, Vulners
+from vulners.resources.search import _parse_history, _parse_search_page, _parse_web_vulns
 from vulners.types import SearchDocument, SearchPage
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 BASE_URL = "https://vulners.test"
 LUCENE_URL = f"{BASE_URL}/api/v3/search/lucene/"
+HISTORY_URL = f"{BASE_URL}/api/v3/search/history/"
+WEB_VULNS_URL = f"{BASE_URL}/api/v4/search/web-vulns/"
 
 
 def load_fixture(name: str) -> dict[str, object]:
@@ -113,3 +119,79 @@ def test_search_models_are_frozen() -> None:
     document = SearchDocument(id="CVE-2024-0001")
     with pytest.raises(ValidationError):
         document.id = "CVE-2024-0002"
+
+
+@respx.mock
+def test_history_returns_typed_entries() -> None:
+    route = respx.post(HISTORY_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "OK",
+                "data": {
+                    "result": [{"field": "cvss3", "published": "2024-01-01T00:00:00", "value": {}}]
+                },
+            },
+        )
+    )
+    with Vulners("not-a-real-key", base_url=BASE_URL) as client:
+        entries = client.search.history("CVE-2024-0001")
+
+    assert entries[0].field == "cvss3"
+    assert json.loads(route.calls[0].request.content) == {"id": "CVE-2024-0001"}
+
+
+@respx.mock
+async def test_async_web_vulns_returns_matches_by_path() -> None:
+    route = respx.post(WEB_VULNS_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={"result": {"wp-content": [{"id": "CVE-2024-0001", "type": "cve"}]}},
+        )
+    )
+    async with AsyncVulners("not-a-real-key", base_url=BASE_URL) as client:
+        result = await client.search.web_vulns(
+            ("wp-content",), application="wordpress", config=("php",)
+        )
+
+    assert result.matches["wp-content"][0].id == "CVE-2024-0001"
+    assert json.loads(route.calls[0].request.content) == {
+        "paths": ["wp-content"],
+        "application": "wordpress",
+        "match": "partial",
+        "catalog": "official",
+        "config": ["php"],
+    }
+
+
+def test_search_input_validation() -> None:
+    with Vulners("key", base_url=BASE_URL) as client:
+        with pytest.raises(ValueError, match="limit"):
+            client.search.bulletins("test", limit=0)
+        with pytest.raises(ValueError, match="offset"):
+            client.search.bulletins("test", offset=-1)
+        with pytest.raises(ValueError, match="paths"):
+            client.search.web_vulns(())
+
+
+@respx.mock
+def test_sync_web_vulns_and_async_history_parsers() -> None:
+    respx.post(WEB_VULNS_URL).mock(return_value=httpx.Response(200, json={"result": {"/": []}}))
+    with Vulners("key", base_url=BASE_URL) as client:
+        assert client.search.web_vulns(("/",)).matches["/"] == ()
+
+
+@pytest.mark.parametrize(
+    ("parser", "payload"),
+    [
+        (_parse_search_page, None),
+        (_parse_search_page, {"search": "bad", "total": 1}),
+        (_parse_history, {}),
+        (_parse_web_vulns, {"result": []}),
+    ],
+)
+def test_search_parsers_reject_malformed_envelopes(
+    parser: Callable[[object], object], payload: object
+) -> None:
+    with pytest.raises(ValueError, match="Unexpected"):
+        parser(payload)
