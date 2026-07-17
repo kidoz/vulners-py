@@ -146,6 +146,7 @@ class SubscriptionsResource:
     def __init__(self, transport: SyncTransport) -> None:
         self._transport = transport
         self.email = EmailSubscriptionsResource(transport)
+        self.webhooks = WebhooksResource(transport)
 
     def list(self) -> tuple[Subscription, ...]:
         """List subscriptions through ``GET /api/v4/subscriptions/list/``."""
@@ -248,9 +249,13 @@ class WebhooksResource:
             add_api_key=True,
         )
 
-    def enable(self, id: str, active: bool) -> None:
-        """Enable or disable a polling subscription."""
-        self.edit(id, active=active)
+    def enable(self, id: str) -> None:
+        """Activate a polling subscription."""
+        self.edit(id, active=True)
+
+    def disable(self, id: str) -> None:
+        """Deactivate a polling subscription."""
+        self.edit(id, active=False)
 
     def delete(self, id: str) -> None:
         """Delete a polling subscription."""
@@ -334,6 +339,7 @@ class AsyncSubscriptionsResource:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
         self.email = AsyncEmailSubscriptionsResource(transport)
+        self.webhooks = AsyncWebhooksResource(transport)
 
     async def list(self) -> tuple[Subscription, ...]:
         """List subscriptions through ``GET /api/v4/subscriptions/list/``."""
@@ -434,9 +440,13 @@ class AsyncWebhooksResource:
             add_api_key=True,
         )
 
-    async def enable(self, id: str, active: bool) -> None:
-        """Enable or disable a polling subscription."""
-        await self.edit(id, active=active)
+    async def enable(self, id: str) -> None:
+        """Activate a polling subscription."""
+        await self.edit(id, active=True)
+
+    async def disable(self, id: str) -> None:
+        """Deactivate a polling subscription."""
+        await self.edit(id, active=False)
 
     async def delete(self, id: str) -> None:
         """Delete a polling subscription."""

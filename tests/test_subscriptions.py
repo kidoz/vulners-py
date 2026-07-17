@@ -92,12 +92,16 @@ def test_sync_subscription_namespaces() -> None:
         assert client.subscriptions.email.add("type:cve", "a@example.com").id == "email-1"
         assert client.subscriptions.email.edit("email-1", active=False).id == "email-1"
         client.subscriptions.email.delete("email-1")
-        assert client.webhooks.list()[0].id == "poll-1"
-        assert client.webhooks.add("type:cve").id == "poll-1"
-        client.webhooks.edit("poll-1", active=True)
-        client.webhooks.enable("poll-1", False)
-        assert client.webhooks.read("poll-1", newest_only=False).result[0]["id"] == "CVE-1"
-        client.webhooks.delete("poll-1")
+        assert client.subscriptions.webhooks.list()[0].id == "poll-1"
+        assert client.subscriptions.webhooks.add("type:cve").id == "poll-1"
+        client.subscriptions.webhooks.edit("poll-1", active=True)
+        client.subscriptions.webhooks.enable("poll-1")
+        client.subscriptions.webhooks.disable("poll-1")
+        assert (
+            client.subscriptions.webhooks.read("poll-1", newest_only=False).result[0]["id"]
+            == "CVE-1"
+        )
+        client.subscriptions.webhooks.delete("poll-1")
 
     add_call = respx.calls.last.request
     assert add_call is not None
@@ -122,12 +126,13 @@ async def test_async_subscription_namespaces() -> None:
             await client.subscriptions.email.edit("email-1", format="json", crontab="0 * * * *")
         ).id == "email-1"
         await client.subscriptions.email.delete("email-1")
-        assert (await client.webhooks.list())[0].id == "poll-1"
-        assert (await client.webhooks.add("type:cve")).id == "poll-1"
-        await client.webhooks.edit("poll-1", active=True)
-        await client.webhooks.enable("poll-1", False)
-        assert (await client.webhooks.read("poll-1")).result[0]["id"] == "CVE-1"
-        await client.webhooks.delete("poll-1")
+        assert (await client.subscriptions.webhooks.list())[0].id == "poll-1"
+        assert (await client.subscriptions.webhooks.add("type:cve")).id == "poll-1"
+        await client.subscriptions.webhooks.edit("poll-1", active=True)
+        await client.subscriptions.webhooks.enable("poll-1")
+        await client.subscriptions.webhooks.disable("poll-1")
+        assert (await client.subscriptions.webhooks.read("poll-1")).result[0]["id"] == "CVE-1"
+        await client.subscriptions.webhooks.delete("poll-1")
 
     bodies = [json.loads(call.request.content) for call in respx.calls if call.request.content]
     assert any(body.get("apiKey") == "key" for body in bodies)

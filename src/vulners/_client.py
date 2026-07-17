@@ -16,9 +16,7 @@ from .resources.reports import AsyncReportsResource, ReportsResource
 from .resources.search import AsyncSearchResource, SearchResource
 from .resources.subscriptions import (
     AsyncSubscriptionsResource,
-    AsyncWebhooksResource,
     SubscriptionsResource,
-    WebhooksResource,
 )
 
 _DEFAULT_BASE_URL = "https://vulners.com"
@@ -72,7 +70,6 @@ class Vulners:
         self.archive = ArchiveResource(self._transport)
         self.reports = ReportsResource(self._transport)
         self.subscriptions = SubscriptionsResource(self._transport)
-        self.webhooks = WebhooksResource(self._transport)
         self.stix = STIXResource(self._transport)
         self.misc = MiscResource(self._transport)
 
@@ -132,7 +129,6 @@ class AsyncVulners:
         self.archive = AsyncArchiveResource(self._transport)
         self.reports = AsyncReportsResource(self._transport)
         self.subscriptions = AsyncSubscriptionsResource(self._transport)
-        self.webhooks = AsyncWebhooksResource(self._transport)
         self.stix = AsyncSTIXResource(self._transport)
         self.misc = AsyncMiscResource(self._transport)
 

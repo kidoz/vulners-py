@@ -103,8 +103,7 @@ asyncio.run(main())
 | `audit` | Software, host, Linux, library, classic OS, Windows, CVE, SBOM, and Smart Audit |
 | `archive` | v3/v4 collections, incremental updates, distributives, and Getsploit downloads |
 | `reports` | Vulnerability, IP, scan, and host reports |
-| `subscriptions` | v4 lifecycle plus legacy email subscriptions under `.email` |
-| `webhooks` | Legacy polling subscription lifecycle and delivery reads |
+| `subscriptions` | v4 lifecycle, plus legacy email subscriptions under `.email` and polling/webhook subscriptions under `.webhooks` |
 | `stix` | STIX bundle generation by bulletin ID |
 | `misc` | Suggestions, autocomplete, CPE lookup, and WAF rules |
 
@@ -165,7 +164,7 @@ with Vulners() as client:
 ```
 
 Create, update, and delete calls mutate remote account state. Legacy email and polling methods are
-kept only in their explicit `subscriptions.email` and `webhooks` namespaces.
+kept only in their explicit `subscriptions.email` and `subscriptions.webhooks` namespaces.
 
 ## Error handling
 
