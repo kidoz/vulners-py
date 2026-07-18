@@ -9,7 +9,7 @@ import httpx  # noqa: TC002 - HTTPX client classes are instantiated at runtime.
 from ._transport import AsyncTransport, SyncTransport
 from .resources.archive import ArchiveResource, AsyncArchiveResource
 from .resources.audit import AsyncAuditResource, AuditResource
-from .resources.documents import AsyncDocumentsResource, DocumentsResource
+from .resources.bulletins import AsyncBulletinsResource, BulletinsResource
 from .resources.misc import AsyncMiscResource, AsyncSTIXResource, MiscResource, STIXResource
 from .resources.reports import AsyncReportsResource, ReportsResource
 from .resources.search import AsyncSearchResource, SearchResource
@@ -66,7 +66,7 @@ class Vulners:
             http_client=http_client,
         )
         self.search = SearchResource(self._transport)
-        self.documents = DocumentsResource(self._transport, self.search)
+        self.bulletins = BulletinsResource(self._transport, self.search)
         self.audit = AuditResource(self._transport)
         self.archive = ArchiveResource(self._transport)
         self.reports = ReportsResource(self._transport)
@@ -126,7 +126,7 @@ class AsyncVulners:
             http_client=http_client,
         )
         self.search = AsyncSearchResource(self._transport)
-        self.documents = AsyncDocumentsResource(self._transport, self.search)
+        self.bulletins = AsyncBulletinsResource(self._transport, self.search)
         self.audit = AsyncAuditResource(self._transport)
         self.archive = AsyncArchiveResource(self._transport)
         self.reports = AsyncReportsResource(self._transport)

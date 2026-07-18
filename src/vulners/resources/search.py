@@ -169,7 +169,7 @@ class SearchResource:
         )
         return _parse_search_page(data)
 
-    def bulletins_iter(
+    def all_bulletins(
         self,
         query: str,
         *,
@@ -236,7 +236,7 @@ class SearchResource:
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
         )
 
-    def exploits_iter(
+    def all_exploits(
         self,
         query: str,
         *,
@@ -265,7 +265,7 @@ class SearchResource:
             ValueError: If an argument or response fails validation.
             VulnersError: If the API request fails.
         """
-        yield from self.bulletins_iter(
+        yield from self.all_bulletins(
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
         )
 
@@ -350,7 +350,7 @@ class AsyncSearchResource:
         )
         return _parse_search_page(data)
 
-    async def bulletins_iter(
+    async def all_bulletins(
         self,
         query: str,
         *,
@@ -418,7 +418,7 @@ class AsyncSearchResource:
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
         )
 
-    async def exploits_iter(
+    async def all_exploits(
         self,
         query: str,
         *,
@@ -447,7 +447,7 @@ class AsyncSearchResource:
             ValueError: If an argument or response fails validation.
             VulnersError: If the API request fails.
         """
-        async for document in self.bulletins_iter(
+        async for document in self.all_bulletins(
             _exploit_query(query, lookup_fields), limit=limit, offset=offset, fields=fields
         ):
             yield document

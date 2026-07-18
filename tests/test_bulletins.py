@@ -7,14 +7,14 @@ import pytest
 import respx
 
 from vulners import AsyncVulners, Vulners
-from vulners.resources.documents import _parse_documents, _references_for
+from vulners.resources.bulletins import _parse_id_documents, _references_for
 from vulners.types import BulletinWithReferences
 
 BASE_URL = "https://vulners.test"
-DOCUMENTS_URL = f"{BASE_URL}/api/v3/search/id/"
+BULLETINS_URL = f"{BASE_URL}/api/v3/search/id/"
 LUCENE_URL = f"{BASE_URL}/api/v3/search/lucene/"
 
-DOCUMENT_RESPONSE = {
+BULLETIN_RESPONSE = {
     "result": "OK",
     "data": {
         "documents": {
@@ -33,9 +33,9 @@ DOCUMENT_RESPONSE = {
 
 @respx.mock
 def test_get_many_with_references_uses_verified_payload() -> None:
-    route = respx.post(DOCUMENTS_URL).mock(return_value=httpx.Response(200, json=DOCUMENT_RESPONSE))
+    route = respx.post(BULLETINS_URL).mock(return_value=httpx.Response(200, json=BULLETIN_RESPONSE))
     with Vulners("not-a-real-key", base_url=BASE_URL) as client:
-        result = client.documents.get_many_with_references(("CVE-2024-0001",))
+        result = client.bulletins.get_many_with_references(("CVE-2024-0001",))
 
     assert isinstance(result[0], BulletinWithReferences)
     assert result[0].document is not None
@@ -65,48 +65,50 @@ def test_get_many_with_references_uses_verified_payload() -> None:
 
 
 @respx.mock
-async def test_async_get_returns_typed_document() -> None:
-    respx.post(DOCUMENTS_URL).mock(return_value=httpx.Response(200, json=DOCUMENT_RESPONSE))
+async def test_async_bulletins_by_id_returns_typed_document() -> None:
+    respx.post(BULLETINS_URL).mock(return_value=httpx.Response(200, json=BULLETIN_RESPONSE))
     async with AsyncVulners("not-a-real-key", base_url=BASE_URL) as client:
-        document = await client.documents.get("CVE-2024-0001")
+        document = await client.bulletins.by_id("CVE-2024-0001")
 
     assert document is not None
     assert document.title == "Example vulnerability"
 
 
 @respx.mock
-def test_document_helpers_and_kb_queries() -> None:
-    respx.post(DOCUMENTS_URL).mock(return_value=httpx.Response(200, json=DOCUMENT_RESPONSE))
+def test_bulletin_helpers_and_kb_queries() -> None:
+    respx.post(BULLETINS_URL).mock(return_value=httpx.Response(200, json=BULLETIN_RESPONSE))
     lucene = respx.post(LUCENE_URL).mock(
         return_value=httpx.Response(200, json={"result": "OK", "data": {"search": [], "total": 0}})
     )
     with Vulners("key", base_url=BASE_URL) as client:
-        assert client.documents.get("CVE-2024-0001") is not None
-        assert client.documents.references("CVE-2024-0001").sources["nvd"]
-        assert client.documents.get_with_references("CVE-2024-0001").document is not None
-        assert client.documents.kb_seeds("MISSING").superseeds == ()
-        assert client.documents.kb_updates("KB123").total == 0
+        assert client.bulletins.by_ids(("CVE-2024-0001",))[0].id == "CVE-2024-0001"
+        assert client.bulletins.by_id("CVE-2024-0001") is not None
+        assert client.bulletins.references("CVE-2024-0001").sources["nvd"]
+        assert client.bulletins.get_with_references("CVE-2024-0001").document is not None
+        assert client.bulletins.kb_seeds("MISSING").superseeds == ()
+        assert client.bulletins.kb_updates("KB123").total == 0
 
     assert json.loads(lucene.calls[0].request.content)["query"] == "type:msupdate AND kb:(KB123)"
 
 
 @respx.mock
-async def test_async_document_helpers() -> None:
-    respx.post(DOCUMENTS_URL).mock(return_value=httpx.Response(200, json=DOCUMENT_RESPONSE))
+async def test_async_bulletin_helpers() -> None:
+    respx.post(BULLETINS_URL).mock(return_value=httpx.Response(200, json=BULLETIN_RESPONSE))
     respx.post(LUCENE_URL).mock(
         return_value=httpx.Response(200, json={"result": "OK", "data": {"search": [], "total": 0}})
     )
     async with AsyncVulners("key", base_url=BASE_URL) as client:
-        assert (await client.documents.references("CVE-2024-0001")).sources
-        combined = await client.documents.get_with_references("CVE-2024-0001")
+        assert (await client.bulletins.by_ids(("CVE-2024-0001",)))[0].id == "CVE-2024-0001"
+        assert (await client.bulletins.references("CVE-2024-0001")).sources
+        combined = await client.bulletins.get_with_references("CVE-2024-0001")
         assert combined.document is not None
-        assert (await client.documents.kb_seeds("MISSING")).parentseeds == ()
-        assert (await client.documents.kb_updates("KB123")).total == 0
+        assert (await client.bulletins.kb_seeds("MISSING")).parentseeds == ()
+        assert (await client.bulletins.kb_updates("KB123")).total == 0
 
 
 @respx.mock
 def test_kb_seeds_accepts_json_null_relationships() -> None:
-    respx.post(DOCUMENTS_URL).mock(
+    respx.post(BULLETINS_URL).mock(
         return_value=httpx.Response(
             200,
             json={
@@ -125,18 +127,18 @@ def test_kb_seeds_accepts_json_null_relationships() -> None:
         )
     )
     with Vulners("key", base_url=BASE_URL) as client:
-        seeds = client.documents.kb_seeds("KB123")
+        seeds = client.bulletins.kb_seeds("KB123")
     assert seeds.superseeds == ()
     assert seeds.parentseeds == ()
 
 
-def test_document_input_and_response_validation() -> None:
+def test_bulletin_input_and_response_validation() -> None:
     with Vulners("key", base_url=BASE_URL) as client, pytest.raises(ValueError, match="ids"):
-        client.documents.get_many(())
+        client.bulletins.by_ids(())
 
     with pytest.raises(ValueError, match="Unexpected response"):
-        _parse_documents(None)
+        _parse_id_documents(None)
     with pytest.raises(ValueError, match="Unexpected document"):
-        _parse_documents({"documents": []})
+        _parse_id_documents({"documents": []})
     with pytest.raises(ValueError, match="Unexpected references"):
         _references_for("CVE-1", {"CVE-1": []})

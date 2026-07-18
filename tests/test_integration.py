@@ -19,7 +19,7 @@ def test_live_read_only_sync_contracts() -> None:
     with Vulners(timeout=30, retries=2, rate_limit=False) as client:
         assert client.search.bulletins("id:CVE-2024-23622", limit=1).documents
         assert client.search.history("CVE-2024-23622")
-        assert client.documents.get("CVE-2024-23622") is not None
+        assert client.bulletins.by_id("CVE-2024-23622") is not None
         assert client.audit.cve("CVE-2024-23622").cve == "CVE-2024-23622"
         assert isinstance(
             client.audit.software((AuditSoftware(product="curl", vendor="haxx", version="8.0"),)),
@@ -43,7 +43,7 @@ async def test_live_read_only_async_contracts() -> None:
     async with AsyncVulners(timeout=30, retries=2, rate_limit=False) as client:
         assert (await client.search.bulletins("id:CVE-2024-23622", limit=1)).documents
         assert await client.search.history("CVE-2024-23622")
-        assert (await client.documents.get("CVE-2024-23622")) is not None
+        assert (await client.bulletins.by_id("CVE-2024-23622")) is not None
         assert (await client.audit.cve("CVE-2024-23622")).cve == "CVE-2024-23622"
         assert await client.misc.autocomplete("type:cv")
         assert (await client.misc.waf_rules()).rules

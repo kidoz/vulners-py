@@ -1,4 +1,4 @@
-"""Pydantic models for Vulners bulletin retrieval."""
+"""Pydantic models for Vulners bulletin lookup and references."""
 
 from __future__ import annotations
 

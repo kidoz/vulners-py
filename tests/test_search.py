@@ -63,7 +63,7 @@ async def test_async_bulletins_matches_sync_contract() -> None:
 
 
 @respx.mock
-def test_bulletins_iter_paginates_and_stops_at_total() -> None:
+def test_all_bulletins_paginates_and_stops_at_total() -> None:
     first_page = {
         "result": "OK",
         "data": {
@@ -84,24 +84,24 @@ def test_bulletins_iter_paginates_and_stops_at_total() -> None:
         side_effect=[httpx.Response(200, json=first_page), httpx.Response(200, json=second_page)]
     )
     with Vulners("not-a-real-key", base_url=BASE_URL) as client:
-        documents = list(client.search.bulletins_iter("test", limit=1))
+        documents = list(client.search.all_bulletins("test", limit=1))
 
     assert [document.id for document in documents] == ["CVE-2024-0001", "CVE-2024-0002"]
     assert route.call_count == 2
 
 
 @respx.mock
-def test_bulletins_iter_stops_at_empty_page() -> None:
+def test_all_bulletins_stops_at_empty_page() -> None:
     empty_route = respx.post(LUCENE_URL).mock(
         return_value=httpx.Response(200, json={"result": "OK", "data": {"search": [], "total": 2}})
     )
     with Vulners("key", base_url=BASE_URL) as client:
-        assert list(client.search.bulletins_iter("empty", limit=1)) == []
+        assert list(client.search.all_bulletins("empty", limit=1)) == []
     assert empty_route.call_count == 1
 
 
 @respx.mock
-def test_bulletins_iter_stops_at_search_window() -> None:
+def test_all_bulletins_stops_at_search_window() -> None:
     window_route = respx.post(LUCENE_URL).mock(
         return_value=httpx.Response(
             200,
@@ -112,7 +112,7 @@ def test_bulletins_iter_stops_at_search_window() -> None:
         )
     )
     with Vulners("key", base_url=BASE_URL) as client:
-        documents = list(client.search.bulletins_iter("large", limit=20, offset=9_999))
+        documents = list(client.search.all_bulletins("large", limit=20, offset=9_999))
 
     assert [document.id for document in documents] == ["LAST"]
     assert window_route.call_count == 1
@@ -120,14 +120,14 @@ def test_bulletins_iter_stops_at_search_window() -> None:
 
 
 @respx.mock
-async def test_async_bulletins_iter_paginates() -> None:
+async def test_async_all_bulletins_paginates() -> None:
     first_page = {"result": "OK", "data": {"search": [{"_source": {"id": "A"}}], "total": 2}}
     second_page = {"result": "OK", "data": {"search": [{"_source": {"id": "B"}}], "total": 2}}
     respx.post(LUCENE_URL).mock(
         side_effect=[httpx.Response(200, json=first_page), httpx.Response(200, json=second_page)]
     )
     async with AsyncVulners("not-a-real-key", base_url=BASE_URL) as client:
-        documents = [document async for document in client.search.bulletins_iter("test", limit=1)]
+        documents = [document async for document in client.search.all_bulletins("test", limit=1)]
 
     assert [document.id for document in documents] == ["A", "B"]
 
@@ -142,6 +142,53 @@ def test_exploit_search_builds_legacy_compatible_query() -> None:
 
     payload = json.loads(route.calls[0].request.content)
     assert payload["query"] == 'bulletinFamily:exploit AND (title:""cve-2024-1234"")'
+
+
+@respx.mock
+def test_all_exploits_uses_auto_paginating_search() -> None:
+    route = respx.post(LUCENE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "OK",
+                "data": {"search": [{"_source": {"id": "EXPLOIT-1"}}], "total": 1},
+            },
+        )
+    )
+    with Vulners("not-a-real-key", base_url=BASE_URL) as client:
+        documents = list(client.search.all_exploits("CVE-2024-1234"))
+
+    assert [document.id for document in documents] == ["EXPLOIT-1"]
+    assert json.loads(route.calls[0].request.content)["query"] == (
+        'bulletinFamily:exploit AND ("CVE-2024-1234")'
+    )
+
+
+@respx.mock
+async def test_async_all_exploits_matches_sync_contract() -> None:
+    respx.post(LUCENE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "result": "OK",
+                "data": {"search": [{"_source": {"id": "ASYNC-EXPLOIT"}}], "total": 1},
+            },
+        )
+    )
+    async with AsyncVulners("not-a-real-key", base_url=BASE_URL) as client:
+        documents = [document async for document in client.search.all_exploits("CVE-2024-1234")]
+
+    assert [document.id for document in documents] == ["ASYNC-EXPLOIT"]
+
+
+def test_replaced_search_names_are_not_exposed() -> None:
+    with Vulners("key", base_url=BASE_URL) as client:
+        assert not hasattr(client, "documents")
+        assert not hasattr(client.search, "by_id")
+        assert not hasattr(client.bulletins, "get")
+        assert not hasattr(client.bulletins, "get_many")
+        assert not hasattr(client.search, "bulletins_iter")
+        assert not hasattr(client.search, "exploits_iter")
 
 
 def test_search_models_are_frozen() -> None:

@@ -17,7 +17,7 @@ from .audit import (
     SmartAuditResult,
     WindowsSoftware,
 )
-from .documents import BulletinReferences, BulletinWithReferences, KBSeeds
+from .bulletins import BulletinReferences, BulletinWithReferences, KBSeeds
 from .misc import CPEMatch, STIXBundle, STIXObject, WAFRule, WAFRules
 from .reports import HostVulnsRow, IPSummaryRow, ScanListRow, VulnsListRow, VulnsSummaryRow
 from .search import (
