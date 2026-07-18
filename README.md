@@ -10,7 +10,8 @@ HTTP handling, and no deprecated top-level compatibility aliases.
 
 ## Features
 
-- Search, document retrieval, software/host/package/SBOM audits, and Smart Audit.
+- Search, single-bulletin lookup, multi-document retrieval, software/host/package/SBOM audits,
+  and Smart Audit.
 - ZIP, gzip, JSON, and NDJSON archive decoding with a stream-to-disk option.
 - Reports, v4 subscriptions, legacy email/polling subscriptions, STIX, CPE, and search helpers.
 - API-key loading from `VULNERS_API_KEY`, including `.env`-based development workflows.
@@ -81,7 +82,7 @@ from vulners import Vulners
 
 with Vulners() as client:
     page = client.search.bulletins("wordpress 4.7", limit=10)
-    document = client.documents.get("CVE-2024-23622")
+    document = client.bulletins.by_id("CVE-2024-23622")
 
 for bulletin in page.documents:
     print(bulletin.id, bulletin.title)
@@ -98,7 +99,7 @@ from vulners import AsyncVulners
 
 async def main() -> None:
     async with AsyncVulners() as client:
-        async for bulletin in client.search.exploits_iter("CVE-2021-44228"):
+        async for bulletin in client.search.all_exploits("CVE-2021-44228"):
             print(bulletin.id)
 
 
@@ -109,8 +110,8 @@ asyncio.run(main())
 
 | Namespace | Capabilities |
 | --- | --- |
-| `search` | Bulletins, exploits, iterators, history, and web vulnerability matching |
-| `documents` | Get one/many documents, references, KB seeds, and KB updates |
+| `search` | Paginated bulletin/exploit searches, history, and web vulnerability matching |
+| `bulletins` | Bulletin lookup by ID, references, KB seeds, and KB updates |
 | `audit` | Software, host, Linux, library, classic OS, Windows, CVE, SBOM, and Smart Audit |
 | `archive` | v3/v4 collections, incremental updates, distributives, and Getsploit downloads |
 | `reports` | Vulnerability, IP, scan, and host reports |
@@ -118,6 +119,29 @@ asyncio.run(main())
 | `webhooks` | Legacy polling/webhook subscriptions |
 | `stix` | STIX bundle generation by bulletin ID |
 | `misc` | Suggestions, autocomplete, CPE lookup, and WAF rules |
+
+### Search and bulletin lookup
+
+The `bulletins` namespace owns bulletin lookup by ID. The `search` namespace owns Lucene search;
+use its paged methods when you need result metadata or explicit offsets, and the `all_*` methods
+when you want lazy, auto-paginated results:
+
+| Method | Result |
+| --- | --- |
+| `client.bulletins.by_id(id)` | One `SearchDocument`, or `None` when the ID is not found |
+| `client.bulletins.by_ids(ids)` | Found bulletins in the requested ID order |
+| `client.search.bulletins(query, ...)` | One `SearchPage` with documents and total metadata |
+| `client.search.all_bulletins(query, ...)` | Lazy iterator or async iterator over all matches |
+| `client.search.exploits(query, ...)` | One exploit-filtered `SearchPage` |
+| `client.search.all_exploits(query, ...)` | Lazy iterator or async iterator over all exploits |
+
+Reference and KB helpers also live under `client.bulletins`:
+
+```python
+with Vulners() as client:
+    bulletins = client.bulletins.by_ids(("CVE-2024-23622", "CVE-2021-44228"))
+    references = client.bulletins.references("CVE-2024-23622")
+```
 
 ### Audit examples
 
@@ -198,9 +222,9 @@ except VulnersAPIError as error:
 | Legacy wrapper | `vulners-py` |
 | --- | --- |
 | `find(query)` / `search_bulletins(query)` | `client.search.bulletins(query)` |
-| `find_all(query)` | `client.search.bulletins_iter(query)` |
+| `find_all(query)` | `client.search.all_bulletins(query)` |
 | `find_exploit(query)` | `client.search.exploits(query)` |
-| `get_bulletin(id)` | `client.documents.get(id)` |
+| `get_bulletin(id)` | `client.bulletins.by_id(id)` |
 | `audit_software(...)` | `client.audit.software(...)` |
 | `winaudit(...)` | `client.audit.winaudit(...)` |
 | `vulnssummary_report(...)` | `client.reports.vulns_summary(...)` |

@@ -44,11 +44,14 @@ uv run python examples/check_connection.py && uv run python examples/search.py
 | --- | --- |
 | `check_connection.py` | Verify the `.env` key works (sync preflight) |
 | `async_check_connection.py` | Same probe on the async client |
-| `search.py` | Iterate bulletin search results |
-| `exploits.py` | Find public exploits for a CVE |
+| `search.py` | Lazily auto-paginate bulletins with `client.search.all_bulletins(...)` |
+| `exploits.py` | Fetch one exploit-search page with `client.search.exploits(...)` |
 | `software_audit.py` | Audit structured software metadata |
 | `linux_audit.py` | Audit an installed distro package |
 
 All of these are read-only. Smart Audit, SBOM, archive bulk downloads, and
 subscription mutations can be billed or mutate account state — see the top-level
 `README.md` before calling them.
+
+For direct ID lookup, use `client.bulletins.by_id(id)`. Use `client.bulletins.by_ids(ids)` for
+multiple IDs; reference and KB operations also live under `client.bulletins`.
