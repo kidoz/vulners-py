@@ -7,5 +7,5 @@ from vulners import Vulners
 load_dotenv()
 
 with Vulners() as client:
-    for bulletin in client.search.all_bulletins("wordpress", limit=100):
+    for bulletin in client.search.iter_bulletins("wordpress", limit=100):
         print(bulletin.id)

@@ -44,7 +44,7 @@ uv run python examples/check_connection.py && uv run python examples/search.py
 | --- | --- |
 | `check_connection.py` | Verify the `.env` key works (sync preflight) |
 | `async_check_connection.py` | Same probe on the async client |
-| `search.py` | Lazily auto-paginate bulletins with `client.search.all_bulletins(...)` |
+| `search.py` | Lazily auto-paginate bulletins with `client.search.iter_bulletins(...)` |
 | `exploits.py` | Fetch one exploit-search page with `client.search.exploits(...)` |
 | `software_audit.py` | Audit structured software metadata |
 | `linux_audit.py` | Audit an installed distro package |

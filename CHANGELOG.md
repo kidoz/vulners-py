@@ -8,6 +8,19 @@ The 1.x series is a public-API stabilization period: patch releases preserve com
 minor releases may contain clearly documented breaking API refinements. Starting with 2.0.0, the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) strictly.
 
+## [Unreleased]
+
+### Changed
+
+- Rename the lazy, auto-paginating search methods from `all_bulletins(...)` and
+  `all_exploits(...)` to `iter_bulletins(...)` and `iter_exploits(...)` so their names clearly
+  communicate iterator semantics.
+
+### Removed
+
+- Remove the former `search.all_bulletins(...)` and `search.all_exploits(...)` names without
+  compatibility aliases under the documented 1.x API stabilization policy.
+
 ## [1.1.0] - 2026-07-18
 
 This release intentionally refines the early public API while adoption is limited. Correcting the

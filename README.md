@@ -108,7 +108,7 @@ from vulners import AsyncVulners
 
 async def main() -> None:
     async with AsyncVulners() as client:
-        async for bulletin in client.search.all_exploits("CVE-2021-44228"):
+        async for bulletin in client.search.iter_exploits("CVE-2021-44228"):
             print(bulletin.id)
 
 
@@ -132,7 +132,7 @@ asyncio.run(main())
 ### Search and bulletin lookup
 
 The `bulletins` namespace owns bulletin lookup by ID. The `search` namespace owns Lucene search;
-use its paged methods when you need result metadata or explicit offsets, and the `all_*` methods
+use its paged methods when you need result metadata or explicit offsets, and the `iter_*` methods
 when you want lazy, auto-paginated results:
 
 | Method | Result |
@@ -140,9 +140,9 @@ when you want lazy, auto-paginated results:
 | `client.bulletins.by_id(id)` | One `SearchDocument`, or `None` when the ID is not found |
 | `client.bulletins.by_ids(ids)` | Found bulletins in the requested ID order |
 | `client.search.bulletins(query, ...)` | One `SearchPage` with documents and total metadata |
-| `client.search.all_bulletins(query, ...)` | Lazy iterator or async iterator over all matches |
+| `client.search.iter_bulletins(query, ...)` | Lazy iterator or async iterator over all matches |
 | `client.search.exploits(query, ...)` | One exploit-filtered `SearchPage` |
-| `client.search.all_exploits(query, ...)` | Lazy iterator or async iterator over all exploits |
+| `client.search.iter_exploits(query, ...)` | Lazy iterator or async iterator over all exploits |
 
 Reference and KB helpers also live under `client.bulletins`:
 
@@ -231,7 +231,7 @@ except VulnersAPIError as error:
 | Legacy wrapper | `vulners-py` |
 | --- | --- |
 | `find(query)` / `search_bulletins(query)` | `client.search.bulletins(query)` |
-| `find_all(query)` | `client.search.all_bulletins(query)` |
+| `find_all(query)` | `client.search.iter_bulletins(query)` |
 | `find_exploit(query)` | `client.search.exploits(query)` |
 | `get_bulletin(id)` | `client.bulletins.by_id(id)` |
 | `audit_software(...)` | `client.audit.software(...)` |
