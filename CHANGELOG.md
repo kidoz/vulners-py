@@ -2,10 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+The 1.x series is a public-API stabilization period: patch releases preserve compatibility, while
+minor releases may contain clearly documented breaking API refinements. Starting with 2.0.0, the
+project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) strictly.
 
 ## [1.1.0] - 2026-07-18
+
+This release intentionally refines the early public API while adoption is limited. Correcting the
+namespace and method names now avoids carrying compatibility aliases and naming debt into future
+feature development.
 
 ### Changed
 

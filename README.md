@@ -25,6 +25,15 @@ VScanner is intentionally excluded because it is deprecated.
 - Python 3.10 or newer
 - A [Vulners API key](https://vulners.com)
 
+## Versioning policy
+
+The 1.x series is the SDK's public-API stabilization period. Patch releases preserve compatibility;
+minor releases may include clearly documented breaking API refinements when correcting an early
+design before further feature development avoids long-term compatibility debt. Review
+[`CHANGELOG.md`](CHANGELOG.md) before upgrading to a new 1.x minor release.
+
+Starting with 2.0.0, public API compatibility follows strict Semantic Versioning.
+
 ## Installation
 
 ```bash
