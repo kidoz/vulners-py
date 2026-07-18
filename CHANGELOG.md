@@ -8,7 +8,7 @@ The 1.x series is a public-API stabilization period: patch releases preserve com
 minor releases may contain clearly documented breaking API refinements. Starting with 2.0.0, the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) strictly.
 
-## [Unreleased]
+## [1.2.0] - 2026-07-18
 
 ### Changed
 
@@ -92,6 +92,7 @@ feature development.
 
 - Deprecated VScanner and legacy top-level compatibility aliases are intentionally not included.
 
+[1.2.0]: https://github.com/kidoz/vulners-py/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/kidoz/vulners-py/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/kidoz/vulners-py/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/kidoz/vulners-py/compare/v0.1.0...v1.0.0
